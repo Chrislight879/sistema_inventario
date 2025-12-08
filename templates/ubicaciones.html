@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>🏢 Ubicaciones</h2>
+        
+        <!-- Formulario para agregar/editar ubicación -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>{% if ubicacion_edit %}Editar Ubicación{% else %}Agregar Nueva Ubicación{% endif %}</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" 
+                      action="{% if ubicacion_edit %}{{ url_for('editar_ubicacion', id=ubicacion_edit.id) }}{% else %}{{ url_for('agregar_ubicacion') }}{% endif %}">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="nombre_edificio" class="form-label">Nombre del Edificio/Ubicación</label>
+                                <input type="text" class="form-control" id="nombre_edificio" name="nombre_edificio" 
+                                       value="{{ ubicacion_edit.nombre if ubicacion_edit else '' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3 d-grid">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary">
+                                    {% if ubicacion_edit %}Actualizar{% else %}Agregar{% endif %}
+                                </button>
+                                {% if ubicacion_edit %}
+                                <a href="{{ url_for('ubicaciones') }}" class="btn btn-secondary mt-2">Cancelar</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Lista de ubicaciones -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Lista de Ubicaciones</h5>
+                <span class="badge bg-primary">{{ ubicaciones|length }} ubicaciones</span>
+            </div>
+            <div class="card-body">
+                {% if ubicaciones %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nombre del Edificio</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ubicacion in ubicaciones %}
+                            <tr>
+                                <td>{{ ubicacion.nombre }}</td>
+                                <td>
+                                    <a href="{{ url_for('ubicaciones') }}?editar={{ ubicacion.id }}" 
+                                       class="btn btn-sm btn-warning">Editar</a>
+                                    <a href="{{ url_for('eliminar_ubicacion', id=ubicacion.id) }}" 
+                                       class="btn btn-sm btn-danger" 
+                                       onclick="return confirm('¿Está seguro de eliminar esta ubicación?')">Eliminar</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    No hay ubicaciones registradas. Agrega una nueva ubicación.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

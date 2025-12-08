@@ -1,0 +1,63 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: inventario_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sistema_inventario
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Flask Application
+  web:
+    build: .
+    container_name: inventario_app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env.docker  # Cargar variables desde archivo
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+      echo '🔄 Esperando a PostgreSQL...' &&
+      sleep 5 &&
+      echo '✅ PostgreSQL listo!' &&
+      echo '🚀 Iniciando Flask...' &&
+      python app.py
+      "
+
+  # Seed Service
+  seed:
+    build: .
+    container_name: inventario_seed
+    restart: "no"
+    env_file:
+      - .env.docker  # Cargar variables desde archivo
+    depends_on:
+      - postgres
+    command: >
+      sh -c "
+      echo '⏳ Esperando a PostgreSQL...' &&
+      sleep 10 &&
+      echo '🌱 Ejecutando seed...' &&
+      python seed-db-docker.py
+      "
+
+volumes:
+  postgres_data:

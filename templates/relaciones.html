@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>🔗 Relaciones entre Compras</h2>
+        
+        <!-- Mostrar mensajes flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Formulario para agregar relación -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Agregar Nueva Relación</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('agregar_relacion') }}" id="relacionForm">
+                    <div class="row">
+                        <div class="col-md-5">
+                            <div class="mb-3">
+                                <label for="id_compra_madre" class="form-label">Compra Madre (Principal)</label>
+                                <select class="form-select" id="id_compra_madre" name="id_compra_madre" required>
+                                    <option value="">Seleccionar compra madre</option>
+                                    {% for compra in compras %}
+                                    <option value="{{ compra.id }}" 
+                                            data-usuario="{{ compra.usuario_id }}"
+                                            data-es-madre="{{ compra.producto_es_madre }}">
+                                        {{ compra.nombre }} - {{ compra.numero_serie or 'Sin serie' }} 
+                                        (Usuario: {{ compra.usuario_nombre }}, ID: {{ compra.id }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">
+                                    Solo se mostrarán compras con usuario asignado
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="mb-3">
+                                <label for="id_sub_compra" class="form-label">Sub Compra (Componente/Dependiente)</label>
+                                <select class="form-select" id="id_sub_compra" name="id_sub_compra" required>
+                                    <option value="">Seleccionar sub compra</option>
+                                    {% for compra in compras %}
+                                    <option value="{{ compra.id }}" 
+                                            data-usuario="{{ compra.usuario_id }}"
+                                            data-es-madre="{{ compra.producto_es_madre }}">
+                                        {{ compra.nombre }} - {{ compra.numero_serie or 'Sin serie' }} 
+                                        (Usuario: {{ compra.usuario_nombre }}, ID: {{ compra.id }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">
+                                    Se mostrarán todas las compras disponibles
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="mb-3 d-grid">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary" id="submitBtn">Agregar Relación</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Lista de relaciones -->
+        <div class="card">
+            <div class="card-header">
+                <h5>Lista de Relaciones</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Compra Madre</th>
+                                <th>Usuario</th>
+                                <th>N° Serie</th>
+                                <th>Tipo</th>
+                                <th>Sub Compra</th>
+                                <th>Usuario</th>
+                                <th>N° Serie</th>
+                                <th>Tipo</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for relacion in relaciones %}
+                            <tr>
+                                <td>
+                                    <strong>{{ relacion.producto_madre_nombre }}</strong><br>
+                                    <small class="text-muted">ID: {{ relacion.compra_madre_id }}</small>
+                                </td>
+                                <td>{{ relacion.usuario_madre_nombre or 'Sin usuario' }}</td>
+                                <td>{{ relacion.serie_madre or '-' }}</td>
+                                <td>
+                                    {% if relacion.producto_madre_es_madre %}
+                                    <span class="badge bg-info">🏠 Madre</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">🔧 Hijo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ relacion.producto_hija_nombre }}</strong><br>
+                                    <small class="text-muted">ID: {{ relacion.sub_compra_id }}</small>
+                                </td>
+                                <td>{{ relacion.usuario_hija_nombre or 'Sin usuario' }}</td>
+                                <td>{{ relacion.serie_hija or '-' }}</td>
+                                <td>
+                                    {% if relacion.producto_hija_es_madre %}
+                                    <span class="badge bg-info">🏠 Madre</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">🔧 Hijo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('eliminar_relacion', id=relacion.id )}}" 
+                                       class="btn btn-sm btn-danger" 
+                                       onclick="return confirm('¿Está seguro de eliminar esta relación?')">Eliminar</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const compraMadreSelect = document.getElementById('id_compra_madre');
+        const subCompraSelect = document.getElementById('id_sub_compra');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        function validarFormulario() {
+            const compraMadreId = compraMadreSelect.value;
+            const subCompraId = subCompraSelect.value;
+            const compraMadreOption = compraMadreSelect.options[compraMadreSelect.selectedIndex];
+            const subCompraOption = subCompraSelect.options[subCompraSelect.selectedIndex];
+            
+            // Si no hay selección, habilitar el botón (validación se hace en backend)
+            if (!compraMadreId || !subCompraId) {
+                submitBtn.disabled = false;
+                return;
+            }
+            
+            // Validar que no sea la misma compra
+            if (compraMadreId === subCompraId) {
+                alert('❌ No puede vincular una compra consigo misma');
+                subCompraSelect.value = '';
+                submitBtn.disabled = true;
+                return;
+            }
+            
+            // Validar mismo usuario
+            const usuarioMadre = compraMadreOption.getAttribute('data-usuario');
+            const usuarioHijo = subCompraOption.getAttribute('data-usuario');
+            
+            if (usuarioMadre !== usuarioHijo) {
+                alert('❌ Solo puede vincular compras del mismo usuario');
+                submitBtn.disabled = true;
+                return;
+            }
+            
+            // Validar tipos de producto
+            const esMadreMadre = compraMadreOption.getAttribute('data-es-madre') === 'True';
+            const esMadreHijo = subCompraOption.getAttribute('data-es-madre') === 'True';
+            
+            if (!esMadreMadre) {
+                alert('❌ La compra madre debe ser de un producto tipo "Madre" (ej: computadora)');
+                submitBtn.disabled = true;
+                return;
+            }
+            
+            if (esMadreHijo) {
+                alert('❌ La sub compra debe ser de un producto tipo "Hijo/Componente" (ej: RAM, SSD)');
+                submitBtn.disabled = true;
+                return;
+            }
+            
+            // Si pasa todas las validaciones, habilitar el botón
+            submitBtn.disabled = false;
+        }
+        
+        // Event listeners
+        compraMadreSelect.addEventListener('change', validarFormulario);
+        subCompraSelect.addEventListener('change', validarFormulario);
+        
+        // Validación al enviar
+        document.getElementById('relacionForm').addEventListener('submit', function(e) {
+            // La validación principal se hace en el backend
+            // Esto es solo para mejorar la experiencia de usuario
+            return true;
+        });
+        
+        // Inicializar validación
+        validarFormulario();
+    });
+</script>
+{% endblock %}

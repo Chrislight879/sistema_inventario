@@ -1,0 +1,159 @@
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.navbar-nav .nav-link {
+    font-weight: 500;
+    margin: 0 5px;
+}
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.card {
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+    border: none;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.card-header {
+    font-weight: bold;
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    padding: 15px 20px;
+}
+
+.card-title {
+    color: #333;
+    margin-bottom: 0;
+}
+
+.table th {
+    background-color: #e9ecef;
+    font-weight: 600;
+    color: #495057;
+    border-top: none;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+.btn-sm {
+    margin-right: 5px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.alert {
+    margin-top: 20px;
+    border-radius: 8px;
+    border: none;
+}
+
+h1, h2, h3, h4, h5 {
+    color: #333;
+    font-weight: 600;
+}
+
+h2 {
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.form-label {
+    font-weight: 500;
+    color: #555;
+}
+
+.form-control, .form-select {
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+/* Estilos para tablas responsivas */
+.table-responsive {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Estilos para botones de acción */
+.btn-group-vertical .btn {
+    margin-bottom: 5px;
+}
+
+/* Estilos para cards en el dashboard */
+.card .card-body {
+    padding: 1.5rem;
+}
+
+/* Estilos para mensajes flash */
+.alert-dismissible .btn-close {
+    padding: 1rem;
+}
+
+/* Mejoras visuales para selects múltiples */
+select[multiple] {
+    min-height: 150px;
+}
+
+/* Estilos para tooltips */
+[title] {
+    cursor: help;
+}
+
+/* Estilos para badges de estado */
+.badge.bg-warning {
+    color: #212529;
+}
+
+/* Estilos para el diagrama de relaciones */
+#diagramaRelaciones {
+    background-color: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Responsividad mejorada */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn-sm {
+        display: block;
+        width: 100%;
+        margin-bottom: 5px;
+    }
+    
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+}

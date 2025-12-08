@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>📁 Categorías de Productos</h2>
+        
+        <!-- Formulario para agregar/editar categoría -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>{% if categoria_edit %}Editar Categoría{% else %}Agregar Nueva Categoría{% endif %}</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" 
+                      action="{% if categoria_edit %}{{ url_for('editar_categoria', id=categoria_edit.id) }}{% else %}{{ url_for('agregar_categoria') }}{% endif %}">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="nombre_categoria" class="form-label">Nombre de la Categoría</label>
+                                <input type="text" class="form-control" id="nombre_categoria" name="nombre_categoria" 
+                                       value="{{ categoria_edit.nombre if categoria_edit else '' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3 d-grid">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary">
+                                    {% if categoria_edit %}Actualizar{% else %}Agregar{% endif %}
+                                </button>
+                                {% if categoria_edit %}
+                                <a href="{{ url_for('categorias') }}" class="btn btn-secondary mt-2">Cancelar</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Lista de categorías -->
+        <div class="card">
+            <div class="card-header">
+                <h5>Lista de Categorías</h5>
+            </div>
+            <div class="card-body">
+                {% if categorias %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for categoria in categorias %}
+                            <tr>
+                                <td>{{ categoria.nombre }}</td>
+                                <td>
+                                    <a href="{{ url_for('categorias') }}?editar={{ categoria.id }}" 
+                                       class="btn btn-sm btn-warning">Editar</a>
+                                    <a href="{{ url_for('eliminar_categoria', id=categoria.id) }}" 
+                                       class="btn btn-sm btn-danger" 
+                                       onclick="return confirm('¿Está seguro de eliminar esta categoría?')">Eliminar</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    No hay categorías registradas. Agrega una nueva categoría.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

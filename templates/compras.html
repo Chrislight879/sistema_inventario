@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>🛒 Compras</h2>
+        
+        <!-- DEBUG: Mostrar información -->
+        <div class="alert alert-info d-none">
+            <small>
+                DEBUG: <br>
+                Compras: {{ compras|length }}<br>
+                Productos: {{ productos|length }}<br>
+                Proveedores: {{ proveedores|length }}<br>
+                Usuarios: {{ usuarios|length }}<br>
+                {% if usuarios %}Primer usuario: {{ usuarios[0] }}{% endif %}
+            </small>
+        </div>
+        
+        <!-- Formulario para agregar/editar compra -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>{% if compra_edit %}Editar Compra{% else %}Agregar Nueva Compra{% endif %}</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" 
+                      action="{% if compra_edit %}{{ url_for('editar_compra', id=compra_edit.id) }}{% else %}{{ url_for('agregar_compra') }}{% endif %}">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="fecha_compra" class="form-label">Fecha de Compra</label>
+                                <input type="date" class="form-control" id="fecha_compra" name="fecha_compra" 
+                                       value="{{ compra_edit.fecha_compra if compra_edit else '' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="producto" class="form-label">Producto</label>
+                                <select class="form-select" id="producto" name="producto" required>
+                                    <option value="">Seleccionar producto</option>
+                                    {% if productos %}
+                                        {% for producto in productos %}
+                                        <option value="{{ producto.id }}"
+                                                {% if compra_edit and compra_edit.producto_id == producto.id %}selected{% endif %}>
+                                            {{ producto.nombre }}
+                                        </option>
+                                        {% endfor %}
+                                    {% else %}
+                                        <option value="" disabled>No hay productos disponibles</option>
+                                    {% endif %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="proveedor" class="form-label">Proveedor</label>
+                                <select class="form-select" id="proveedor" name="proveedor" required>
+                                    <option value="">Seleccionar proveedor</option>
+                                    {% if proveedores %}
+                                        {% for proveedor in proveedores %}
+                                        <option value="{{ proveedor.id }}"
+                                                {% if compra_edit and compra_edit.proveedor_id == proveedor.id %}selected{% endif %}>
+                                            {{ proveedor.nombre }}
+                                        </option>
+                                        {% endfor %}
+                                    {% else %}
+                                        <option value="" disabled>No hay proveedores disponibles</option>
+                                    {% endif %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="fin_garantia" class="form-label">Fin de Garantía (opcional)</label>
+                                <input type="date" class="form-control" id="fin_garantia" name="fin_garantia" 
+                                       value="{{ compra_edit.fin_garantia if compra_edit else '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="comprado_para" class="form-label">Comprado para (opcional)</label>
+                                <select class="form-select" id="comprado_para" name="comprado_para">
+                                    <option value="">Sin asignar</option>
+                                    {% if usuarios %}
+                                        {% for usuario in usuarios %}
+                                        <option value="{{ usuario.id }}"
+                                                {% if compra_edit and compra_edit.usuario_id == usuario.id %}selected{% endif %}>
+                                            {{ usuario.nombre }}
+                                        </option>
+                                        {% endfor %}
+                                    {% else %}
+                                        <option value="" disabled>No hay usuarios disponibles</option>
+                                    {% endif %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="numero_serie" class="form-label">Número de Serie (opcional)</label>
+                                <input type="text" class="form-control" id="numero_serie" name="numero_serie" 
+                                       value="{{ compra_edit.numero_serie if compra_edit else '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3 d-grid">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary">
+                                    {% if compra_edit %}Actualizar{% else %}Agregar{% endif %}
+                                </button>
+                                {% if compra_edit %}
+                                <a href="{{ url_for('compras') }}" class="btn btn-secondary mt-2">Cancelar</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Lista de compras -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Lista de Compras</h5>
+                <span class="badge bg-primary">{{ compras|length }} compras</span>
+            </div>
+            <div class="card-body">
+                {% if compras %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Producto</th>
+                                <th>Proveedor</th>
+                                <th>Usuario</th>
+                                <th>N° Serie</th>
+                                <th>Fin Garantía</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for compra in compras %}
+                            <tr>
+                                <td>{{ compra.id }}</td>
+                                <td>{{ compra.fecha_compra }}</td>
+                                <td>{{ compra.producto_nombre or 'Desconocido' }}</td>
+                                <td>{{ compra.proveedor_nombre or 'Desconocido' }}</td>
+                                <td>{{ compra.usuario_nombre or 'No asignado' }}</td>
+                                <td>{{ compra.numero_serie or '-' }}</td>
+                                <td>{{ compra.fin_garantia or '-' }}</td>
+                                <td>
+                                    <a href="{{ url_for('compras') }}?editar={{ compra.id }}" 
+                                       class="btn btn-sm btn-warning">Editar</a>
+                                    <a href="{{ url_for('eliminar_compra', id=compra.id) }}" 
+                                       class="btn btn-sm btn-danger" 
+                                       onclick="return confirm('¿Está seguro de eliminar esta compra?')">Eliminar</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    No hay compras registradas. Agrega una nueva compra.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Debug: mostrar información en consola
+
+    
+    // Establecer fecha actual por defecto si no hay valor
+    document.addEventListener('DOMContentLoaded', function() {
+        const fechaCompraInput = document.getElementById('fecha_compra');
+        if (fechaCompraInput && !fechaCompraInput.value) {
+            const today = new Date().toISOString().split('T')[0];
+            fechaCompraInput.value = today;
+        }
+    });
+</script>
+{% endblock %}

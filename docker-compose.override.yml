@@ -1,0 +1,8 @@
+# docker-compose.override.yml (opcional, para desarrollo)
+
+services:
+  web:
+    environment:
+      - FLASK_DEBUG=1
+    stdin_open: true
+    tty: true
