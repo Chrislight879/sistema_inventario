@@ -5,65 +5,86 @@
     <div class="col-md-12">
         <h2>👥 Usuarios</h2>
         
-        <!-- DEBUG: Mostrar información de variables -->
-        <div class="alert alert-info d-none">
-            <small>
-                DEBUG: <br>
-                Usuarios count: {{ usuarios|length }}<br>
-                Ubicaciones count: {{ ubicaciones|length }}<br>
-                Usuario edit: {{ usuario_edit }}<br>
-                Primera ubicación: {{ ubicaciones[0] if ubicaciones else 'No hay' }}
-            </small>
-        </div>
+        <!-- Mostrar mensajes flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                        <i class="bi bi-{{ 'exclamation-circle' if category == 'error' else 'check-circle' }}"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         
         <!-- Formulario para agregar/editar usuario -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5>{% if usuario_edit %}Editar Usuario{% else %}Agregar Nuevo Usuario{% endif %}</h5>
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi {{ 'bi-pencil-square' if usuario_edit else 'bi-plus-circle' }}"></i>
+                    {{ 'Editar Usuario' if usuario_edit else 'Agregar Nuevo Usuario' }}
+                </h5>
             </div>
             <div class="card-body">
                 <form method="POST" 
                       action="{% if usuario_edit %}{{ url_for('editar_usuario', id=usuario_edit.id) }}{% else %}{{ url_for('agregar_usuario') }}{% endif %}">
-                    <div class="row">
+                    <div class="row align-items-end">
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="nombre" class="form-label">Nombre del Usuario</label>
-                                <input type="text" class="form-control" id="nombre" name="nombre" 
-                                       value="{{ usuario_edit.nombre if usuario_edit else '' }}" required>
+                                <label for="nombre" class="form-label fw-bold">
+                                    <i class="bi bi-person"></i> Nombre del Usuario *
+                                </label>
+                                <input type="text" 
+                                       class="form-control form-control-lg" 
+                                       id="nombre" 
+                                       name="nombre" 
+                                       value="{{ usuario_edit.nombre if usuario_edit else '' }}" 
+                                       required
+                                       placeholder="Ej: Juan Pérez">
+                                <small class="text-muted">Nombre completo del usuario</small>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="mb-3">
-                                <label for="ubicacion" class="form-label">Ubicación</label>
+                                <label for="ubicacion" class="form-label fw-bold">
+                                    <i class="bi bi-building"></i> Ubicación (Edificio) *
+                                </label>
                                 <select class="form-select" id="ubicacion" name="ubicacion" required>
                                     <option value="">Seleccionar ubicación</option>
-                                    {% if ubicaciones %}
-                                        {% for ubicacion in ubicaciones %}
-                                        <option value="{{ ubicacion.id }}"
-                                                {% if usuario_edit and usuario_edit.ubicacion_id == ubicacion.id %}selected{% endif %}>
-                                            {{ ubicacion.nombre }}
-                                        </option>
-                                        {% endfor %}
-                                    {% else %}
-                                        <option value="" disabled>No hay ubicaciones disponibles</option>
-                                    {% endif %}
+                                    {% for u in ubicaciones %}
+                                    <option value="{{ u.id }}" {% if usuario_edit and usuario_edit.ubicacion_id == u.id %}selected{% endif %}>
+                                        {{ u.nombre }}
+                                    </option>
+                                    {% endfor %}
                                 </select>
+                                <small class="text-muted">Edificio donde trabaja</small>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="mb-3">
-                                <label for="ubicacion_especifica" class="form-label">Ubicación Específica (opcional)</label>
-                                <input type="text" class="form-control" id="ubicacion_especifica" name="ubicacion_especifica" 
-                                       value="{{ usuario_edit.ubicacion_especifica if usuario_edit else '' }}">
+                                <label for="ubicacion_especifica" class="form-label fw-bold">
+                                    <i class="bi bi-door-closed"></i> Referencia
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="ubicacion_especifica" 
+                                       name="ubicacion_especifica" 
+                                       value="{{ usuario_edit.ubicacion_especifica if usuario_edit else '' }}" 
+                                       placeholder="Ej: Oficina 101">
+                                <small class="text-muted">Oficina, despacho, etc.</small>
                             </div>
                         </div>
-                        <div class="col-md-12">
-                            <div class="mb-3 d-grid">
-                                <button type="submit" class="btn btn-primary">
-                                    {% if usuario_edit %}Actualizar{% else %}Agregar{% endif %}
+                        <div class="col-md-2">
+                            <div class="mb-3 d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-check-lg"></i> 
+                                    {{ 'Actualizar' if usuario_edit else 'Agregar' }}
                                 </button>
                                 {% if usuario_edit %}
-                                <a href="{{ url_for('usuarios') }}" class="btn btn-secondary mt-2">Cancelar</a>
+                                <a href="{{ url_for('usuarios') }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-lg"></i> Cancelar
+                                </a>
                                 {% endif %}
                             </div>
                         </div>
@@ -72,36 +93,134 @@
             </div>
         </div>
 
-        <!-- Lista de usuarios -->
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Lista de Usuarios</h5>
-                <span class="badge bg-primary">{{ usuarios|length }} usuarios</span>
+        <!-- Panel de filtros para la lista -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-funnel"></i> Filtros de Búsqueda
+                </h5>
             </div>
             <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="filterNombre" class="form-label fw-bold">
+                            <i class="bi bi-search"></i> Nombre
+                        </label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="filterNombre" 
+                               placeholder="Buscar por nombre...">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="filterUbicacion" class="form-label fw-bold">
+                            <i class="bi bi-building"></i> Ubicación
+                        </label>
+                        <select class="form-select" id="filterUbicacion">
+                            <option value="">Todas las ubicaciones</option>
+                            {% for u in ubicaciones %}
+                            <option value="{{ u.nombre }}">{{ u.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="filterEspecifica" class="form-label fw-bold">
+                            <i class="bi bi-door-closed"></i> Referencia
+                        </label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="filterEspecifica" 
+                               placeholder="Buscar por oficina...">
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <button class="btn btn-outline-secondary" id="resetFilters">
+                        <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
+                    </button>
+                    <div class="text-end">
+                        <span class="badge bg-success fs-6" id="usuariosFiltrados">0</span>
+                        <span class="ms-2 text-muted">usuarios mostrados</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de usuarios -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ul"></i> Lista de Usuarios
+                </h5>
+                <div>
+                    <span class="badge bg-light text-dark fs-6">{{ usuarios|length }}</span>
+                    <span class="ms-2">en total</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
                 {% if usuarios %}
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="table-light sticky-top">
                             <tr>
-                                <th>Nombre</th>
-                                <th>Edificio</th>
-                                <th>Ubicación Específica</th>
-                                <th>Acciones</th>
+                                <th style="width: 25%;">
+                                    <i class="bi bi-person"></i> Nombre
+                                </th>
+                                <th style="width: 30%;">
+                                    <i class="bi bi-building"></i> Ubicación
+                                </th>
+                                <th style="width: 25%;">
+                                    <i class="bi bi-door-closed"></i> Referencia
+                                </th>
+                                <th style="width: 20%;" class="text-center">
+                                    <i class="bi bi-gear"></i> Acciones
+                                </th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tablaUsuarios">
                             {% for usuario in usuarios %}
-                            <tr>
-                                <td>{{ usuario.nombre }}</td>
-                                <td>{{ usuario.ubicacion_nombre or 'No asignado' }}</td>
-                                <td>{{ usuario.ubicacion_especifica or '-' }}</td>
+                            <tr class="usuario-row" 
+                                data-nombre="{{ usuario.nombre or '' }}" 
+                                data-ubicacion="{{ usuario.ubicacion_nombre or '' }}" 
+                                data-especifica="{{ usuario.ubicacion_especifica or '' }}"
+                                style="transition: background-color 0.2s;">
                                 <td>
-                                    <a href="{{ url_for('usuarios') }}?editar={{ usuario.id }}" 
-                                       class="btn btn-sm btn-warning">Editar</a>
-                                    <a href="{{ url_for('eliminar_usuario', id=usuario.id) }}" 
-                                       class="btn btn-sm btn-danger" 
-                                       onclick="return confirm('¿Está seguro de eliminar este usuario?')">Eliminar</a>
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-person-circle text-primary" style="font-size: 1.5rem; margin-right: 10px;"></i>
+                                        <div>
+                                            <strong>{{ usuario.nombre }}</strong>
+                                            <br>
+                                            <small class="text-muted">Usuario #{{ usuario.id }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        <i class="bi bi-building text-info"></i>
+                                        <strong>{{ usuario.ubicacion_nombre or 'No asignado' }}</strong>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if usuario.ubicacion_especifica %}
+                                        <span class="badge bg-light text-dark">
+                                            <i class="bi bi-door-closed"></i> {{ usuario.ubicacion_especifica }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('usuarios', editar=usuario.id) }}" 
+                                           class="btn btn-outline-warning" 
+                                           title="Editar este usuario">
+                                            <i class="bi bi-pencil"></i> Editar
+                                        </a>
+                                        <a href="{{ url_for('eliminar_usuario', id=usuario.id) }}" 
+                                           class="btn btn-outline-danger" 
+                                           title="Eliminar este usuario"
+                                           onclick="return confirm('⚠️ ¿Está seguro de eliminar &quot;{{ usuario.nombre }}&quot;? No será posible si está en uso.')">
+                                            <i class="bi bi-trash"></i> Eliminar
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -109,8 +228,10 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="alert alert-info">
-                    No hay usuarios registrados. Agrega un nuevo usuario.
+                <div class="alert alert-info text-center m-4" role="alert">
+                    <i class="bi bi-info-circle" style="font-size: 2rem;"></i>
+                    <p class="mt-2"><strong>No hay usuarios registrados.</strong></p>
+                    <p class="text-muted">Agrega tu primer usuario usando el formulario arriba para asignarle equipos.</p>
                 </div>
                 {% endif %}
             </div>
@@ -121,21 +242,85 @@
 
 {% block scripts %}
 <script>
-    // Debug: mostrar información en consola
-    const usuariosData = JSON.parse('{{ usuarios|tojson|safe }}');
-    const ubicacionesData = JSON.parse('{{ ubicaciones|tojson|safe }}');
-    console.log("Usuarios en template:", usuariosData);
-    console.log("Ubicaciones en template:", ubicacionesData);
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ Script de usuarios cargado');
     
-    // Validación simple del formulario
-    document.querySelector('form').addEventListener('submit', function(e) {
-        const nombre = document.getElementById('nombre').value.trim();
-        const ubicacion = document.getElementById('ubicacion').value;
-        
-        if (!nombre || !ubicacion) {
-            e.preventDefault();
-            alert('Por favor complete todos los campos requeridos');
+    // --- ELEMENTOS DEL DOM ---
+    const filterUbicacion = document.getElementById('filterUbicacion');
+    const filterNombre = document.getElementById('filterNombre');
+    const filterEspecifica = document.getElementById('filterEspecifica');
+    const tablaBody = document.getElementById('tablaUsuarios');
+    const filas = tablaBody ? tablaBody.getElementsByClassName('usuario-row') : [];
+    const contadorFiltrados = document.getElementById('usuariosFiltrados');
+
+    // --- FUNCIÓN DE FILTRADO ---
+    function filtrarTabla() {
+        const ubicacionFiltro = filterUbicacion.value.toLowerCase();
+        const nombreFiltro = filterNombre.value.toLowerCase();
+        const especificaFiltro = filterEspecifica.value.toLowerCase();
+        let count = 0;
+
+        console.log('🔍 Filtrando usuarios:', { ubicacionFiltro, nombreFiltro, especificaFiltro });
+
+        for (let fila of filas) {
+            const ubicacion = (fila.dataset.ubicacion || '').toLowerCase();
+            const nombre = (fila.dataset.nombre || '').toLowerCase();
+            const especifica = (fila.dataset.especifica || '').toLowerCase();
+
+            const mostrar = 
+                (ubicacionFiltro === '' || ubicacion.includes(ubicacionFiltro)) &&
+                (nombreFiltro === '' || nombre.includes(nombreFiltro)) &&
+                (especificaFiltro === '' || especifica.includes(especificaFiltro));
+
+            fila.style.display = mostrar ? '' : 'none';
+            if (mostrar) count++;
         }
+        
+        contadorFiltrados.textContent = count;
+        console.log('✅ Usuarios mostrados:', count);
+    }
+
+    // --- EVENT LISTENERS ---
+    filterUbicacion.addEventListener('change', function() {
+        console.log('📍 Ubicación cambió a:', this.value);
+        filtrarTabla();
     });
+
+    filterNombre.addEventListener('keyup', function() {
+        console.log('🔎 Búsqueda por nombre:', this.value);
+        filtrarTabla();
+    });
+
+    filterEspecifica.addEventListener('keyup', function() {
+        console.log('🔎 Búsqueda por referencia:', this.value);
+        filtrarTabla();
+    });
+
+    document.getElementById('resetFilters').addEventListener('click', function(e) {
+        e.preventDefault();
+        filterUbicacion.value = '';
+        filterNombre.value = '';
+        filterEspecifica.value = '';
+        console.log('🔄 Filtros limpios');
+        filtrarTabla();
+    });
+
+    // --- EFECTO HOVER EN FILAS ---
+    Array.from(filas).forEach(fila => {
+        fila.addEventListener('mouseenter', function() {
+            if (this.style.display !== 'none') {
+                this.style.backgroundColor = '#f8f9fa';
+            }
+        });
+
+        fila.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+
+    // --- INICIALIZAR ---
+    filtrarTabla();
+    console.log('✅ Script completamente inicializado');
+});
 </script>
 {% endblock %}

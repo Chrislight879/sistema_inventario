@@ -3,132 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Inventario - Docker</title>
+    <title>Sistema de Inventario - Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background-color: #f8f9fa;
-            padding-top: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 30px 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
+        .container-main { max-width: 1200px; }
+        .header-section, .status-section, .docker-section {
+            background: #fff; border-radius: 15px; padding: 30px; margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.18); animation: fadeInUp 0.6s ease-out;
+        }
+        .header-content { display:flex; justify-content:space-between; align-items:center; gap:20px; flex-wrap:wrap; }
+        .header-title h1 { color:#333; font-weight:700; font-size:2.4rem; margin:0; }
+        .header-subtitle { color:#666; font-size:1.05rem; margin-top:8px; }
         .docker-badge {
-            background-color: #2496ed;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 12px;
+            background: linear-gradient(135deg, #2496ed 0%, #1a73e8 100%);
+            color:#fff; padding:10px 20px; border-radius:50px; font-weight:600;
+            display:flex; align-items:center; gap:8px; box-shadow:0 4px 15px rgba(36,150,237,0.25);
         }
-        .card {
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        .status-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color:#fff; padding:20px; border-radius:12px; text-align:center; margin-bottom:15px;
         }
-        .card-header {
-            background-color: #343a40;
-            color: white;
+        .status-icon { font-size:2.4rem; margin-bottom:8px; display:block; }
+        .status-label { opacity:0.9; margin-bottom:4px; }
+        .status-badge { display:inline-block; padding:6px 14px; border-radius:20px; font-weight:700; }
+        .status-badge.success { background:#10b981; color:#fff; }
+        .status-badge.error { background:#ef4444; color:#fff; }
+        .modulos-section { margin-bottom:30px; }
+        .modulos-title {
+            color:#fff; font-size:1.8rem; font-weight:700; margin-bottom:22px;
+            display:flex; align-items:center; gap:10px; text-shadow:0 2px 4px rgba(0,0,0,0.1);
+        }
+        .modulo-card {
+            background:#fff; border-radius:15px; padding:26px; box-shadow:0 10px 30px rgba(0,0,0,0.18);
+            transition:all 0.3s ease; height:100%; display:flex; flex-direction:column; border:2px solid transparent;
+            animation: fadeInUp 0.6s ease-out;
+        }
+        .modulo-card:hover { transform:translateY(-8px); box-shadow:0 20px 40px rgba(0,0,0,0.28); border-color:#667eea; }
+        .modulo-icon { font-size:2.8rem; margin-bottom:12px; display:block; }
+        .modulo-title { font-size:1.2rem; font-weight:700; color:#333; margin-bottom:8px; }
+        .modulo-description { color:#666; font-size:0.95rem; margin-bottom:18px; flex-grow:1; }
+        .modulo-btn {
+            border-radius:10px; padding:12px 16px; font-weight:600; color:#fff; text-decoration:none; text-align:center;
+            transition:all 0.3s ease; border:none;
+        }
+        .modulo-btn:hover { transform:scale(1.04); color:#fff; text-decoration:none; }
+        .btn-categorias { background:linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .btn-productos { background:linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .btn-proveedores { background:linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .btn-ubicaciones { background:linear-gradient(135deg, #fa709a 0%, #fee140 100%); color:#333; }
+        .btn-usuarios { background:linear-gradient(135deg, #30cfd0 0%, #330867 100%); }
+        .btn-relaciones { background:linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color:#333; }
+        .btn-compras { background:linear-gradient(135deg, #6dd5ed 0%, #2193b0 100%); }
+        .btn-mantenimientos { background:linear-gradient(135deg, #fbc2eb 0%, #a18cd1 100%); }
+        .docker-section h3 {
+            color:#2496ed; font-weight:700; margin-bottom:18px; display:flex; align-items:center; gap:10px; font-size:1.4rem;
+        }
+        .docker-box {
+            background: linear-gradient(135deg, #2496ed 0%, #1a73e8 100%);
+            color:#fff; padding:22px; border-radius:12px; margin-bottom:18px;
+        }
+        .docker-box h5 { font-weight:700; margin-bottom:12px; font-size:1.05rem; }
+        .docker-item { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.2); }
+        .docker-item:last-child { border-bottom:none; }
+        .docker-item a {
+            color:#fff; text-decoration:none; background:rgba(255,255,255,0.2);
+            padding:6px 12px; border-radius:8px; transition:all 0.3s ease;
+        }
+        .docker-item a:hover { background:rgba(255,255,255,0.3); text-decoration:underline; }
+        @keyframes fadeInUp { from { opacity:0; transform:translateY(18px);} to {opacity:1; transform:translateY(0);} }
+        @media (max-width: 768px) {
+            .header-content { flex-direction:column; text-align:center; }
+            .header-title h1 { font-size:2rem; }
+            .modulos-title { font-size:1.5rem; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">🏢 Sistema de Inventario</h4>
-                        <span class="docker-badge">🐳 Docker</span>
+    <div class="container container-main">
+        <!-- Header -->
+        <div class="header-section">
+            <div class="header-content">
+                <div class="header-title">
+                    <div>
+                        <h1>📦 Sistema de Inventario</h1>
+                        <p class="header-subtitle">Gestión completa de productos y ubicaciones</p>
                     </div>
-                    <div class="card-body">
-                        <div class="alert alert-info">
-                            <h5>📊 Estado del Sistema</h5>
-                            <p>Base de datos: <strong>{{ db_status }}</strong></p>
-                            <p>Todos los servicios están corriendo en contenedores Docker</p>
+                </div>
+                <div class="docker-badge">
+                    <i class="bi bi-box"></i> 🐳 Docker Ready
+                </div>
+            </div>
+        </div>
+
+        <!-- Estado -->
+        <div class="status-section">
+            <h3 class="d-flex align-items-center gap-2" style="color:#333;"><i class="bi bi-heart-pulse"></i> Estado del Sistema</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="status-card">
+                        <i class="bi bi-database status-icon"></i>
+                        <div class="status-label">Base de Datos</div>
+                        <div>
+                            {% if db_status == 'Conectado' %}
+                                <span class="status-badge success">✓ {{ db_status }}</span>
+                            {% else %}
+                                <span class="status-badge error">✗ {{ db_status }}</span>
+                            {% endif %}
                         </div>
-                        
-                        <h5>📋 Módulos Disponibles</h5>
-                        <div class="row mt-3">
-                            <div class="col-md-3 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h6>📁 Categorías</h6>
-                                        <p>Gestionar categorías de productos</p>
-                                        <a href="{{ url_for('categorias') }}" class="btn btn-primary btn-sm">Acceder</a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h6>📦 Productos</h6>
-                                        <p>Gestionar productos del inventario</p>
-                                        <a href="{{ url_for('productos') }}" class="btn btn-success btn-sm">Acceder</a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h6>🚚 Proveedores</h6>
-                                        <p>Gestionar proveedores</p>
-                                        <a href="{{ url_for('proveedores') }}" class="btn btn-info btn-sm">Acceder</a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h6>🏢 Ubicaciones</h6>
-                                        <p>Gestionar edificios y ubicaciones</p>
-                                        <a href="{{ url_for('ubicaciones') }}" class="btn btn-warning btn-sm">Acceder</a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <hr>
-                        
-                        <h5>🐳 Información Docker</h5>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <h6>📦 Contenedores</h6>
-                                        <ul class="list-group list-group-flush">
-                                            <li class="list-group-item">
-                                                <strong>PostgreSQL:</strong> inventario_db:5432
-                                            </li>
-                                            <li class="list-group-item">
-                                                <strong>Flask App:</strong> inventario_app:5000
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <h6>🔗 Accesos</h6>
-                                        <ul class="list-group list-group-flush">
-                                            <li class="list-group-item">
-                                                <strong>Aplicación:</strong> 
-                                                <a href="http://localhost:5000" target="_blank">http://localhost:5000</a>
-                                            </li>
-                                            <li class="list-group-item">
-                                                <strong>PostgreSQL:</strong> localhost:5432
-                                            </li>
-                                            <li class="list-group-item">
-                                                <strong>Salud:</strong> 
-                                                <a href="/health" target="_blank">/health</a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="status-card">
+                        <i class="bi bi-server status-icon"></i>
+                        <div class="status-label">Aplicación</div>
+                        <div><span class="status-badge success">✓ Activa</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Módulos -->
+        <div class="modulos-section">
+            <h2 class="modulos-title"><i class="bi bi-grid-3x3-gap"></i> Módulos Disponibles</h2>
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-4"><div class="modulo-card"><span class="modulo-icon">🛒</span><h3 class="modulo-title">Compras</h3><p class="modulo-description">Gestión de compras y registros de adquisición.</p><a href="{{ url_for('compras') }}" class="modulo-btn btn-compras"><i class="bi bi-arrow-right-circle"></i> Ir a Compras</a></div></div>
+                <div class="col-md-6 col-lg-4"><div class="modulo-card"><span class="modulo-icon">🛠️</span><h3 class="modulo-title">Mantenimientos</h3><p class="modulo-description">Control y seguimiento de mantenimientos.</p><a href="{{ url_for('mantenimientos') }}" class="modulo-btn btn-mantenimientos"><i class="bi bi-arrow-right-circle"></i> Ir a Mantenimientos</a></div></div>
+                <div class="col-md-6 col-lg-4"><div class="modulo-card"><span class="modulo-icon">📦</span><h3 class="modulo-title">Productos</h3><p class="modulo-description">Inventario de productos y componentes.</p><a href="{{ url_for('productos') }}" class="modulo-btn btn-productos"><i class="bi bi-arrow-right-circle"></i> Ir a Productos</a></div></div>
+                <div class="col-md-6 col-lg-4"><div class="modulo-card"><span class="modulo-icon">📁</span><h3 class="modulo-title">Categorías</h3><p class="modulo-description">Clasifica y organiza productos por categoría.</p><a href="{{ url_for('categorias') }}" class="modulo-btn btn-categorias"><i class="bi bi-arrow-right-circle"></i> Ir a Categorías</a></div></div>
+                <div class="col-md-6 col-lg-4"><div class="modulo-card"><span class="modulo-icon">🏢</span><h3 class="modulo-title">Ubicaciones</h3><p class="modulo-description">Define edificios y puntos de ubicación.</p><a href="{{ url_for('ubicaciones') }}" class="modulo-btn btn-ubicaciones"><i class="bi bi-arrow-right-circle"></i> Ir a Ubicaciones</a></div></div>
+                <div class="col-md-6 col-lg-4"><div class="modulo-card"><span class="modulo-icon">🚚</span><h3 class="modulo-title">Proveedores</h3><p class="modulo-description">Administra proveedores y compras.</p><a href="{{ url_for('proveedores') }}" class="modulo-btn btn-proveedores"><i class="bi bi-arrow-right-circle"></i> Ir a Proveedores</a></div></div>
+                <div class="col-md-6 col-lg-4"><div class="modulo-card"><span class="modulo-icon">👥</span><h3 class="modulo-title">Usuarios</h3><p class="modulo-description">Gestiona usuarios y asignación de equipos.</p><a href="{{ url_for('usuarios') }}" class="modulo-btn btn-usuarios"><i class="bi bi-arrow-right-circle"></i> Ir a Usuarios</a></div></div>
+                <div class="col-md-6 col-lg-4"><div class="modulo-card"><span class="modulo-icon">🔗</span><h3 class="modulo-title">Relaciones</h3><p class="modulo-description">Relaciones madre–componentes de compras.</p><a href="{{ url_for('relaciones') }}" class="modulo-btn btn-relaciones"><i class="bi bi-arrow-right-circle"></i> Ir a Relaciones</a></div></div>
+            </div>
+        </div>
+
+        <!-- Docker Info -->
+        <div class="docker-section">
+            <h3><i class="bi bi-box"></i> Información Docker</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="docker-box">
+                        <h5><i class="bi bi-diagram-3"></i> Contenedores Activos</h5>
+                        <div class="docker-item"><strong>PostgreSQL Database</strong><span class="status-badge success">Activo</span></div>
+                        <div class="docker-item"><strong>Puerto</strong><span>5432</span></div>
+                        <div class="docker-item"><strong>Host</strong><span>inventario_db</span></div>
+                    </div>
+                    <div class="docker-box">
+                        <h5><i class="bi bi-app"></i> Aplicación Flask</h5>
+                        <div class="docker-item"><strong>Estado</strong><span class="status-badge success">Corriendo</span></div>
+                        <div class="docker-item"><strong>Puerto</strong><span>5000</span></div>
+                        <div class="docker-item"><strong>Host</strong><span>inventario_app</span></div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="docker-box">
+                        <h5><i class="bi bi-link-45deg"></i> Accesos Rápidos</h5>
+                        <div class="docker-item"><strong>Aplicación Web</strong><a href="http://localhost:5000" target="_blank" rel="noopener noreferrer"><i class="bi bi-box"></i> Abrir</a></div>
+                        <div class="docker-item"><strong>Health Check</strong><a href="/health" target="_blank" rel="noopener noreferrer"><i class="bi bi-heart-pulse"></i> Verificar</a></div>
+                        <div class="docker-item"><strong>Base de Datos</strong><span>localhost:5432</span></div>
+                    </div>
+                    <div class="docker-box">
+                        <h5><i class="bi bi-info-circle"></i> Información Técnica</h5>
+                        <div class="docker-item"><strong>Motor BD</strong><span>PostgreSQL 13+</span></div>
+                        <div class="docker-item"><strong>Framework</strong><span>Flask + SQLAlchemy</span></div>
+                        <div class="docker-item"><strong>Frontend</strong><span>Bootstrap 5</span></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>document.addEventListener('DOMContentLoaded', ()=>console.log('✅ Dashboard cargado'));</script>
 </body>
 </html>

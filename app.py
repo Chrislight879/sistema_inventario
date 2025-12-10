@@ -1,103 +1,109 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 import os
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import time
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'clave-secreta-docker')
 
 # ========== CONEXIÓN A LA BASE DE DATOS ==========
 def get_db_connection():
-    """Obtener conexión a PostgreSQL"""
+    database_url = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/inventario')
+    
+    print(f"🔗 Intentando conectar a: {database_url}")
+    
     try:
-        conn = psycopg2.connect(
-            host=os.getenv('DB_HOST', 'postgres'),
-            port=os.getenv('DB_PORT', '5432'),
-            database=os.getenv('DB_NAME', 'sistema_inventario'),
-            user=os.getenv('DB_USER', 'admin'),
-            password=os.getenv('DB_PASSWORD', 'admin123')
-        )
+        conn = psycopg2.connect(database_url)
+        print("✅ Conexión exitosa a PostgreSQL")
         return conn
     except Exception as e:
-        print(f"❌ Error de conexión: {e}")
-        return None
+        print(f"❌ Error al conectar a la base de datos: {e}")
+        raise
 
 def execute_query(query, params=None, fetchone=False, fetchall=False):
     """Ejecutar consulta SQL"""
     conn = get_db_connection()
     if not conn:
+        print("❌ No hay conexión a la BD")
         return None
     
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(query, params or ())
+            
             if fetchone:
                 result = cursor.fetchone()
+                conn.commit()
             elif fetchall:
                 result = cursor.fetchall()
-            else:
                 conn.commit()
+            else:
+                # Para INSERT, UPDATE, DELETE
                 result = cursor.rowcount
+                conn.commit()
+        
         conn.close()
         return result
     except Exception as e:
         print(f"❌ Error en consulta: {e}")
-        conn.rollback()
-        conn.close()
+        if conn:
+            conn.rollback()
+            conn.close()
         return None
 
 # ========== RUTAS PRINCIPALES ==========
 @app.route('/')
 def index():
-    """Página principal"""
-    # Obtener estadísticas
-    stats = {
-        'categorias': execute_query("SELECT COUNT(*) as count FROM Categorias", fetchone=True) or {'count': 0},
-        'productos': execute_query("SELECT COUNT(*) as count FROM Productos", fetchone=True) or {'count': 0},
-        'proveedores': execute_query("SELECT COUNT(*) as count FROM Proveedores", fetchone=True) or {'count': 0},
-        'ubicaciones': execute_query("SELECT COUNT(*) as count FROM Ubicaciones", fetchone=True) or {'count': 0},
-        'usuarios': execute_query("SELECT COUNT(*) as count FROM Usuarios", fetchone=True) or {'count': 0},
-        'compras': execute_query("SELECT COUNT(*) as count FROM AsignadorCompra", fetchone=True) or {'count': 0}
-    }
-    
-    # Probar conexión a BD
-    db_status = execute_query("SELECT 1 as test", fetchone=True)
-    connected = db_status is not None
-    
-    return render_template('index.html', 
-                         db_status="✅ Conectada" if connected else "❌ Desconectada",
-                         connected=connected,
-                         stats=stats)
+    """Página de inicio con estadísticas del sistema"""
+    try:
+        # Verificar conexión a la BD
+        conn = get_db_connection()
+        conn.close()
+        db_status = "Conectada"
+        
+        # Obtener estadísticas
+        stats = {
+            'productos': execute_query("SELECT COUNT(*) as count FROM Productos", fetchone=True)['count'],
+            'compras': execute_query("SELECT COUNT(*) as count FROM AsignadorCompra", fetchone=True)['count'],
+            'usuarios': execute_query("SELECT COUNT(*) as count FROM Usuarios", fetchone=True)['count'],
+            'mantenimientos': execute_query("SELECT COUNT(*) as count FROM Mantenimientos", fetchone=True)['count'],
+        }
+    except Exception:
+        db_status = "Error de Conexión"
+        stats = {
+            'productos': 'N/A',
+            'compras': 'N/A',
+            'usuarios': 'N/A',
+            'mantenimientos': 'N/A',
+        }
+        
+    return render_template('index.html', db_status=db_status, stats=stats)
+
 
 @app.route('/health')
 def health():
-    """Endpoint de salud para Docker"""
-    db_status = execute_query("SELECT 1 as test", fetchone=True)
-    if db_status:
-        return jsonify({
-            "status": "healthy",
-            "service": "sistema_inventario",
-            "database": "connected",
-            "timestamp": time.time()
-        }), 200
-    else:
-        return jsonify({
-            "status": "unhealthy",
-            "service": "sistema_inventario",
-            "database": "disconnected"
-        }), 500
+    return jsonify(status="ok")
 
 # ========== CRUD PARA CATEGORÍAS ==========
 @app.route('/categorias')
 def categorias():
-    """Listar categorías"""
+    """Listar categorías con ordenamiento"""
+    # --- Lógica de Ordenamiento ---
+    sort_by = request.args.get('sort_by', 'nombre')
+    sort_order = request.args.get('sort_order', 'asc')
+
+    if sort_order.lower() not in ['asc', 'desc']:
+        sort_order = 'asc'
+    
+    # La única columna para ordenar es Nombre_Categoria
+    order_by_clause = f"ORDER BY Nombre_Categoria {sort_order.upper()}"
+
+    # --- Consultas a la BD ---
     categorias_list = execute_query(
-        "SELECT IdCategoria as id, Nombre_Categoria as nombre FROM Categorias ORDER BY IdCategoria", 
+        f"SELECT IdCategoria as id, Nombre_Categoria as nombre FROM Categorias {order_by_clause}", 
         fetchall=True
     )
     
-    # Manejar edición
     editar_id = request.args.get('editar')
     categoria_edit = None
     if editar_id:
@@ -106,10 +112,12 @@ def categorias():
             (editar_id,), 
             fetchone=True
         )
-    
+
     return render_template('categorias.html', 
                          categorias=categorias_list or [],
-                         categoria_edit=categoria_edit)
+                         categoria_edit=categoria_edit,
+                         sort_by=sort_by,
+                         sort_order=sort_order)
 
 @app.route('/categorias/agregar', methods=['POST'])
 def agregar_categoria():
@@ -142,15 +150,33 @@ def eliminar_categoria(id):
 # ========== CRUD PARA PRODUCTOS ==========
 @app.route('/productos')
 def productos():
-    """Listar productos"""
-    productos_list = execute_query("""
+    """Listar productos con filtros y ordenamiento"""
+    # --- Lógica de Ordenamiento ---
+    sort_by = request.args.get('sort_by', 'es_madre')
+    sort_order = request.args.get('sort_order', 'desc')
+
+    sort_columns_map = {
+        'nombre': "p.Nombre",
+        'categoria_nombre': "c.Nombre_Categoria",
+        'es_madre': "p.Es_Producto_Madre"
+    }
+    
+    sort_column = sort_columns_map.get(sort_by, "p.Es_Producto_Madre")
+    if sort_order.lower() not in ['asc', 'desc']:
+        sort_order = 'desc'
+    
+    # Ordenar por tipo y luego por nombre como secundario
+    order_by_clause = f"ORDER BY {sort_column} {sort_order.upper()}, p.Nombre ASC"
+
+    # --- Consultas a la BD ---
+    productos_list = execute_query(f"""
         SELECT p.IdProducto as id, p.Nombre as nombre, 
                p.Categoria as categoria_id,
                p.Es_Producto_Madre as es_madre,
                c.Nombre_Categoria as categoria_nombre
         FROM Productos p
         LEFT JOIN Categorias c ON p.Categoria = c.IdCategoria
-        ORDER BY p.Es_Producto_Madre DESC, p.Nombre
+        {order_by_clause}
     """, fetchall=True)
     
     categorias_list = execute_query(
@@ -158,7 +184,6 @@ def productos():
         fetchall=True
     )
     
-    # Manejar edición
     editar_id = request.args.get('editar')
     producto_edit = None
     if editar_id:
@@ -171,7 +196,9 @@ def productos():
     return render_template('productos.html', 
                          productos=productos_list or [],
                          categorias=categorias_list or [],
-                         producto_edit=producto_edit)
+                         producto_edit=producto_edit,
+                         sort_by=sort_by,
+                         sort_order=sort_order)
 
 @app.route('/productos/agregar', methods=['POST'])
 def agregar_producto():
@@ -226,13 +253,24 @@ def eliminar_producto(id):
 # ========== CRUD PARA PROVEEDORES ==========
 @app.route('/proveedores')
 def proveedores():
-    """Listar proveedores"""
+    """Listar proveedores con ordenamiento"""
+    # --- Lógica de Ordenamiento ---
+    sort_by = request.args.get('sort_by', 'nombre')
+    sort_order = request.args.get('sort_order', 'asc')
+
+    # Validar que el orden sea 'asc' o 'desc'
+    if sort_order.lower() not in ['asc', 'desc']:
+        sort_order = 'asc'
+    
+    # Para proveedores, solo podemos ordenar por nombre
+    order_by_clause = f"ORDER BY Nombre {sort_order.upper()}"
+
+    # --- Consultas a la BD ---
     proveedores_list = execute_query(
-        "SELECT IdProveedor as id, Nombre as nombre FROM Proveedores ORDER BY IdProveedor", 
+        f"SELECT IdProveedor as id, Nombre as nombre FROM Proveedores {order_by_clause}", 
         fetchall=True
     )
     
-    # Manejar edición
     editar_id = request.args.get('editar')
     proveedor_edit = None
     if editar_id:
@@ -241,10 +279,12 @@ def proveedores():
             (editar_id,), 
             fetchone=True
         )
-    
+
     return render_template('proveedores.html', 
                          proveedores=proveedores_list or [],
-                         proveedor_edit=proveedor_edit)
+                         proveedor_edit=proveedor_edit,
+                         sort_by=sort_by,
+                         sort_order=sort_order)
 
 @app.route('/proveedores/agregar', methods=['POST'])
 def agregar_proveedor():
@@ -277,13 +317,23 @@ def eliminar_proveedor(id):
 # ========== CRUD PARA UBICACIONES ==========
 @app.route('/ubicaciones')
 def ubicaciones():
-    """Listar ubicaciones"""
+    """Listar ubicaciones con ordenamiento"""
+    # --- Lógica de Ordenamiento ---
+    sort_by = request.args.get('sort_by', 'nombre')
+    sort_order = request.args.get('sort_order', 'asc')
+
+    if sort_order.lower() not in ['asc', 'desc']:
+        sort_order = 'asc'
+    
+    # La única columna para ordenar es NombreEdificio
+    order_by_clause = f"ORDER BY NombreEdificio {sort_order.upper()}"
+
+    # --- Consultas a la BD ---
     ubicaciones_list = execute_query(
-        "SELECT IdUbicacion as id, NombreEdificio as nombre FROM Ubicaciones ORDER BY IdUbicacion", 
+        f"SELECT IdUbicacion as id, NombreEdificio as nombre FROM Ubicaciones {order_by_clause}", 
         fetchall=True
     )
     
-    # Manejar edición
     editar_id = request.args.get('editar')
     ubicacion_edit = None
     if editar_id:
@@ -292,10 +342,12 @@ def ubicaciones():
             (editar_id,), 
             fetchone=True
         )
-    
+
     return render_template('ubicaciones.html', 
                          ubicaciones=ubicaciones_list or [],
-                         ubicacion_edit=ubicacion_edit)
+                         ubicacion_edit=ubicacion_edit,
+                         sort_by=sort_by,
+                         sort_order=sort_order)
 
 @app.route('/ubicaciones/agregar', methods=['POST'])
 def agregar_ubicacion():
@@ -328,15 +380,33 @@ def eliminar_ubicacion(id):
 # ========== CRUD PARA USUARIOS ==========
 @app.route('/usuarios')
 def usuarios():
-    """Listar usuarios"""
-    usuarios_list = execute_query("""
-        SELECT u.IdUsuario as id, u.Nombre as nombre, 
-               u.Ubicacion as ubicacion_id, 
-               COALESCE(u.Ubicacion_Especifica, '') as ubicacion_especifica,
-               ub.NombreEdificio as ubicacion_nombre
+    """Listar usuarios con filtros y ordenamiento"""
+    # --- Lógica de Ordenamiento ---
+    sort_by = request.args.get('sort_by', 'nombre')
+    sort_order = request.args.get('sort_order', 'asc')
+
+    sort_columns_map = {
+        'nombre': "u.Nombre",
+        'ubicacion_nombre': "ub.NombreEdificio",
+        'ubicacion_especifica': "u.Ubicacion_Especifica"
+    }
+    
+    sort_column = sort_columns_map.get(sort_by, "u.Nombre")
+    if sort_order.lower() not in ['asc', 'desc']:
+        sort_order = 'asc'
+    
+    order_by_clause = f"ORDER BY {sort_column} {sort_order.upper()}"
+
+    # --- Consultas a la BD ---
+    usuarios_list = execute_query(f"""
+        SELECT u.IdUsuario as id, 
+               u.Nombre as nombre, 
+               u.Ubicacion_Especifica as ubicacion_especifica, 
+               ub.NombreEdificio as ubicacion_nombre,
+               u.Ubicacion as ubicacion_id
         FROM Usuarios u
         LEFT JOIN Ubicaciones ub ON u.Ubicacion = ub.IdUbicacion
-        ORDER BY u.IdUsuario
+        {order_by_clause}
     """, fetchall=True)
     
     ubicaciones_list = execute_query(
@@ -344,7 +414,6 @@ def usuarios():
         fetchall=True
     )
     
-    # Manejar edición
     editar_id = request.args.get('editar')
     usuario_edit = None
     if editar_id:
@@ -353,11 +422,13 @@ def usuarios():
             (editar_id,), 
             fetchone=True
         )
-    
+
     return render_template('usuarios.html', 
                          usuarios=usuarios_list or [],
                          ubicaciones=ubicaciones_list or [],
-                         usuario_edit=usuario_edit)
+                         usuario_edit=usuario_edit,
+                         sort_by=sort_by,
+                         sort_order=sort_order)
 
 @app.route('/usuarios/agregar', methods=['POST'])
 def agregar_usuario():
@@ -401,73 +472,200 @@ def eliminar_usuario(id):
 # ========== CRUD PARA COMPRAS ==========
 @app.route('/compras')
 def compras():
-    """Listar compras"""
-    compras_list = execute_query("""
-        SELECT ac.IdAsignadorCompra as id, 
-               TO_CHAR(ac.Fecha_Compra, 'YYYY-MM-DD') as fecha_compra,
-               TO_CHAR(ac.Fin_Garantia, 'YYYY-MM-DD') as fin_garantia,
-               ac.NumeroSerie as numero_serie,
+    """Listar compras con filtros y ordenamiento"""
+    # --- Lógica de Ordenamiento ---
+    sort_by = request.args.get('sort_by', 'fecha_compra')
+    sort_order = request.args.get('sort_order', 'desc')
+
+    if sort_order.lower() not in ['asc', 'desc']:
+        sort_order = 'desc'
+    
+    order_by_clause = f"ORDER BY ac.Fecha_Compra {sort_order.upper()}"
+
+    # --- Consultas a la BD ---
+    compras_list = execute_query(f"""
+        SELECT ac.IdAsignadorCompra as id,
+               ac.Fecha_Compra as fecha_compra,
                p.Nombre as producto_nombre,
-               prov.Nombre as proveedor_nombre,
+               pr.Nombre as proveedor_nombre,
                u.Nombre as usuario_nombre,
+               ub.NombreEdificio as ubicacion_nombre,
+               ac.NumeroSerie as numero_serie,
+               ac.Fin_Garantia as fin_garantia,
                ac.Producto as producto_id,
                ac.Proveedor as proveedor_id,
                ac.Comprado_Para as usuario_id
         FROM AsignadorCompra ac
         LEFT JOIN Productos p ON ac.Producto = p.IdProducto
-        LEFT JOIN Proveedores prov ON ac.Proveedor = prov.IdProveedor
+        LEFT JOIN Proveedores pr ON ac.Proveedor = pr.IdProveedor
         LEFT JOIN Usuarios u ON ac.Comprado_Para = u.IdUsuario
-        ORDER BY ac.Fecha_Compra DESC
+        LEFT JOIN Ubicaciones ub ON u.Ubicacion = ub.IdUbicacion
+        {order_by_clause}
     """, fetchall=True)
     
     productos_list = execute_query(
-        "SELECT IdProducto as id, Nombre as nombre FROM Productos ORDER BY Nombre", 
+        """SELECT IdProducto as id, Nombre as nombre, Categoria as categoria_id,
+                  Es_Producto_Madre as es_madre, c.Nombre_Categoria as categoria_nombre
+           FROM Productos p
+           LEFT JOIN Categorias c ON p.Categoria = c.IdCategoria
+           ORDER BY Nombre""", 
         fetchall=True
     )
+    
     proveedores_list = execute_query(
         "SELECT IdProveedor as id, Nombre as nombre FROM Proveedores ORDER BY Nombre", 
         fetchall=True
     )
-    usuarios_list = execute_query(
-        "SELECT IdUsuario as id, Nombre as nombre FROM Usuarios ORDER BY Nombre", 
+    
+    usuarios_list = execute_query("""
+        SELECT u.IdUsuario as id, u.Nombre as nombre, ub.NombreEdificio as ubicacion_nombre
+        FROM Usuarios u
+        LEFT JOIN Ubicaciones ub ON u.Ubicacion = ub.IdUbicacion
+        ORDER BY u.Nombre
+    """, fetchall=True)
+    
+    ubicaciones_list = execute_query(
+        "SELECT IdUbicacion as id, NombreEdificio as nombre FROM Ubicaciones ORDER BY NombreEdificio",
         fetchall=True
     )
+
+    # Obtener compras MADRE (para vincular como padre)
+    # Estas son compras ya registradas donde el producto es de tipo "Madre" y tienen usuario asignado
+    compras_madre_list = execute_query("""
+        SELECT ac.IdAsignadorCompra as id,
+               ac.NumeroSerie as numero_serie,
+               p.Nombre as nombre,
+               ac.Comprado_Para as usuario_id,
+               u.Nombre as usuario_nombre,
+               p.Es_Producto_Madre as es_madre
+        FROM AsignadorCompra ac
+        INNER JOIN Productos p ON ac.Producto = p.IdProducto
+        LEFT JOIN Usuarios u ON ac.Comprado_Para = u.IdUsuario
+        WHERE p.Es_Producto_Madre = TRUE
+          AND ac.Comprado_Para IS NOT NULL
+        ORDER BY u.Nombre, p.Nombre
+    """, fetchall=True)
     
-    # Manejar edición
+    # Debug: Imprimir los datos obtenidos
+    print("\n" + "="*60)
+    print("🔍 DEBUG - Compras Madre obtenidas para vincular:")
+    print("="*60)
+    if compras_madre_list:
+        for cm in compras_madre_list:
+            print(f"  ID Compra: {cm.get('id')}")
+            print(f"  Usuario ID: {cm.get('usuario_id')} (tipo: {type(cm.get('usuario_id'))})")
+            print(f"  Usuario Nombre: {cm.get('usuario_nombre')}")
+            print(f"  Producto: {cm.get('nombre')}")
+            print(f"  Es Madre: {cm.get('es_madre')}")
+            print(f"  Serie: {cm.get('numero_serie')}")
+            print(f"  {'-'*58}")
+        print(f"Total: {len(compras_madre_list)} compras madre encontradas")
+    else:
+        print("  ⚠️ No se encontraron compras madre")
+        print("  💡 Verifica que:")
+        print("     1. Existan compras en la tabla AsignadorCompra")
+        print("     2. Los productos tengan Es_Producto_Madre = TRUE")
+        print("     3. Las compras tengan un usuario asignado (Comprado_Para)")
+    print("="*60 + "\n")
+    
     editar_id = request.args.get('editar')
     compra_edit = None
     if editar_id:
         compra_edit = execute_query(
-            "SELECT IdAsignadorCompra as id, Fecha_Compra as fecha_compra, Producto as producto_id, Proveedor as proveedor_id, Fin_Garantia as fin_garantia, Comprado_Para as usuario_id, NumeroSerie as numero_serie FROM AsignadorCompra WHERE IdAsignadorCompra = %s", 
+            """SELECT IdAsignadorCompra as id, Fecha_Compra as fecha_compra, 
+                      Producto as producto_id, Proveedor as proveedor_id, 
+                      Fin_Garantia as fin_garantia, Comprado_Para as usuario_id, 
+                      NumeroSerie as numero_serie 
+               FROM AsignadorCompra WHERE IdAsignadorCompra = %s""", 
             (editar_id,), 
             fetchone=True
         )
-    
+
     return render_template('compras.html', 
                          compras=compras_list or [],
                          productos=productos_list or [],
                          proveedores=proveedores_list or [],
                          usuarios=usuarios_list or [],
-                         compra_edit=compra_edit)
+                         ubicaciones=ubicaciones_list or [],
+                         compras_madre=compras_madre_list or [],
+                         compra_edit=compra_edit,
+                         sort_by=sort_by,
+                         sort_order=sort_order)
 
 @app.route('/compras/agregar', methods=['POST'])
 def agregar_compra():
-    """Agregar nueva compra"""
-    fecha_compra = request.form.get('fecha_compra')
-    producto = request.form.get('producto')
-    proveedor = request.form.get('proveedor')
-    fin_garantia = request.form.get('fin_garantia') or None
-    comprado_para = request.form.get('comprado_para') or None
-    numero_serie = request.form.get('numero_serie', '').strip()
+    """Agregar una o múltiples compras"""
+    # Procesar múltiples compras desde la tabla
+    fechas = request.form.getlist('fecha_compra[]')
+    productos = request.form.getlist('producto[]')
+    proveedores = request.form.getlist('proveedor[]')
+    fin_garantias = request.form.getlist('fin_garantia[]')
+    usuarios = request.form.getlist('comprado_para[]')
+    series = request.form.getlist('numero_serie[]')
+    productos_padre = request.form.getlist('producto_padre[]')
     
-    if fecha_compra and producto and proveedor:
-        execute_query(
-            """INSERT INTO AsignadorCompra 
-               (Fecha_Compra, Producto, Proveedor, Fin_Garantia, Comprado_Para, NumeroSerie) 
-               VALUES (%s, %s, %s, %s, %s, %s)""",
-            (fecha_compra, producto, proveedor, fin_garantia, comprado_para, numero_serie)
-        )
-        flash('✅ Compra agregada exitosamente', 'success')
+    count_exitosas = 0
+    errors = []
+    
+    for i in range(len(fechas)):
+        fecha = fechas[i].strip() if i < len(fechas) else None
+        producto = productos[i].strip() if i < len(productos) else None
+        proveedor = proveedores[i].strip() if i < len(proveedores) else None
+        fin_garantia = fin_garantias[i].strip() if (i < len(fin_garantias) and fin_garantias[i]) else None
+        usuario = usuarios[i].strip() if (i < len(usuarios) and usuarios[i]) else None
+        serie = series[i].strip() if (i < len(series) and series[i]) else ''
+        producto_padre_id = productos_padre[i].strip() if (i < len(productos_padre) and productos_padre[i]) else None
+        
+        # Validar campos requeridos
+        if not fecha or not producto or not proveedor:
+            errors.append(f"Fila {i+1}: Faltan campos requeridos (Fecha, Producto o Proveedor)")
+            continue
+        
+        try:
+            # Insertar compra
+            result = execute_query(
+                """INSERT INTO AsignadorCompra 
+                   (Fecha_Compra, Producto, Proveedor, Fin_Garantia, Comprado_Para, NumeroSerie) 
+                   VALUES (%s, %s, %s, %s, %s, %s)
+                   RETURNING IdAsignadorCompra""",
+                (fecha, int(producto), int(proveedor), fin_garantia, int(usuario) if usuario else None, serie),
+                fetchone=True
+            )
+            
+            if result:
+                # Obtener el ID de la compra insertada
+                compra_id = result.get('idasignadorcompra') or result.get('IdAsignadorCompra')
+                if compra_id:
+                    count_exitosas += 1
+                    
+                    # Si se especificó un producto padre, crear la relación
+                    if producto_padre_id:
+                        try:
+                            execute_query(
+                                "INSERT INTO Relacion_Entre_Compras (IdCompra_Madre, IdSub_Compra) VALUES (%s, %s)",
+                                (int(producto_padre_id), compra_id)
+                            )
+                            print(f"✅ Relación creada: {producto_padre_id} -> {compra_id}")
+                        except Exception as e:
+                            print(f"⚠️ No se pudo crear la relación: {e}")
+                else:
+                    errors.append(f"Fila {i+1}: No se obtuvo ID de la compra")
+            else:
+                errors.append(f"Fila {i+1}: Error al insertar en la BD")
+        except Exception as e:
+            errors.append(f"Fila {i+1}: Error - {str(e)}")
+            print(f"❌ Error insertando compra en fila {i+1}: {e}")
+    
+    # Mostrar mensajes
+    if count_exitosas > 0:
+        flash(f'✅ {count_exitosas} compra(s) agregada(s) exitosamente', 'success')
+    
+    if errors:
+        for error in errors:
+            flash(f'⚠️ {error}', 'warning')
+    
+    if count_exitosas == 0 and not errors:
+        flash('❌ No se pudo agregar ninguna compra. Verifica que todos los campos requeridos estén completos.', 'error')
     
     return redirect(url_for('compras'))
 
@@ -503,8 +701,32 @@ def eliminar_compra(id):
 # ========== CRUD PARA MANTENIMIENTOS ==========
 @app.route('/mantenimientos')
 def mantenimientos():
-    """Listar mantenimientos"""
-    mantenimientos_list = execute_query("""
+    """Listar mantenimientos con filtros y ordenamiento"""
+    # --- Lógica de Ordenamiento ---
+    sort_by = request.args.get('sort_by', 'fecha_inicio')
+    sort_order = request.args.get('sort_order', 'desc')
+
+    # Mapeo seguro de columnas para evitar inyección SQL
+    sort_columns_map = {
+        'producto_nombre': "p.Nombre",
+        'usuario_nombre': "u.Nombre",
+        'ubicacion_nombre': "ub.NombreEdificio",
+        'problema': "m.Problema_Presentado",
+        'fecha_inicio': "m.Fecha_Inicio",
+        'fecha_final': "m.Fecha_Final"
+    }
+    
+    # Validar que la columna de ordenamiento sea válida, si no, usar una por defecto
+    sort_column = sort_columns_map.get(sort_by, "m.Fecha_Inicio")
+    # Validar que el orden sea 'asc' o 'desc'
+    if sort_order.lower() not in ['asc', 'desc']:
+        sort_order = 'desc'
+
+    # Construir la cláusula ORDER BY
+    order_by_clause = f"ORDER BY COALESCE({sort_column}, '1970-01-01'::date) {sort_order.upper()}"
+
+    # --- Consultas a la BD ---
+    mantenimientos_list = execute_query(f"""
         SELECT m.IdMantenimiento as id, 
                m.Problema_Presentado as problema,
                TO_CHAR(m.Fecha_Inicio, 'YYYY-MM-DD') as fecha_inicio,
@@ -513,26 +735,42 @@ def mantenimientos():
                m.Diagnostico as diagnostico,
                ac.NumeroSerie as numero_serie,
                p.Nombre as producto_nombre,
+               u.Nombre as usuario_nombre,
+               ub.NombreEdificio as ubicacion_nombre,
                m.Compra as compra_id
         FROM Mantenimientos m
         LEFT JOIN AsignadorCompra ac ON m.Compra = ac.IdAsignadorCompra
         LEFT JOIN Productos p ON ac.Producto = p.IdProducto
-        ORDER BY COALESCE(m.Fecha_Inicio, '1970-01-01') DESC
+        LEFT JOIN Usuarios u ON ac.Comprado_Para = u.IdUsuario
+        LEFT JOIN Ubicaciones ub ON u.Ubicacion = ub.IdUbicacion
+        {order_by_clause}
     """, fetchall=True)
     
     compras_list = execute_query("""
-        SELECT ac.IdAsignadorCompra as id, ac.NumeroSerie as numero_serie, p.Nombre as nombre
+        SELECT ac.IdAsignadorCompra as id, 
+               ac.NumeroSerie as numero_serie, 
+               p.Nombre as nombre,
+               u.IdUsuario as usuario_id,
+               u.Nombre as usuario_nombre,
+               ub.IdUbicacion as ubicacion_id,
+               ub.NombreEdificio as ubicacion_nombre,
+               ac.Fecha_Compra as fecha_compra
         FROM AsignadorCompra ac
         LEFT JOIN Productos p ON ac.Producto = p.IdProducto
-        ORDER BY ac.Fecha_Compra DESC
+        LEFT JOIN Usuarios u ON ac.Comprado_Para = u.IdUsuario
+        LEFT JOIN Ubicaciones ub ON u.Ubicacion = ub.IdUbicacion
+        WHERE ac.NumeroSerie IS NOT NULL AND ac.NumeroSerie != ''
+        ORDER BY ub.NombreEdificio, u.Nombre, p.Nombre
     """, fetchall=True)
     
-    # Manejar edición
+    ubicaciones_list = execute_query("SELECT IdUbicacion as id, NombreEdificio as nombre FROM Ubicaciones ORDER BY NombreEdificio", fetchall=True)
+    usuarios_list = execute_query("SELECT IdUsuario as id, Nombre as nombre FROM Usuarios ORDER BY Nombre", fetchall=True)
+    
     editar_id = request.args.get('editar')
     mantenimiento_edit = None
     if editar_id:
         mantenimiento_edit = execute_query(
-            "SELECT IdMantenimiento as id, Compra as compra_id, Problema_Presentado as problema, Fecha_Inicio as fecha_inicio, Observaciones as observaciones, Diagnostico as diagnostico, Fecha_Final as fecha_final FROM Mantenimientos WHERE IdMantenimiento = %s", 
+            "SELECT IdMantenimiento as id, Compra as compra_id, Problema_Presentado as problema, TO_CHAR(Fecha_Inicio, 'YYYY-MM-DD') as fecha_inicio, Observaciones as observaciones, Diagnostico as diagnostico, TO_CHAR(Fecha_Final, 'YYYY-MM-DD') as fecha_final FROM Mantenimientos WHERE IdMantenimiento = %s", 
             (editar_id,), 
             fetchone=True
         )
@@ -540,26 +778,32 @@ def mantenimientos():
     return render_template('mantenimientos.html', 
                          mantenimientos=mantenimientos_list or [],
                          compras=compras_list or [],
-                         mantenimiento_edit=mantenimiento_edit)
+                         ubicaciones=ubicaciones_list or [],
+                         usuarios=usuarios_list or [],
+                         mantenimiento_edit=mantenimiento_edit,
+                         sort_by=sort_by,
+                         sort_order=sort_order)
 
 @app.route('/mantenimientos/agregar', methods=['POST'])
 def agregar_mantenimiento():
     """Agregar nuevo mantenimiento"""
     compra = request.form.get('compra')
     problema = request.form.get('problema_presentado', '').strip()
-    fecha_inicio = request.form.get('fecha_inicio') or None
-    observaciones = request.form.get('observaciones', '').strip()
     diagnostico = request.form.get('diagnostico', '').strip()
+    fecha_inicio = request.form.get('fecha_inicio') or None
     fecha_final = request.form.get('fecha_final') or None
-    
+    observaciones = request.form.get('observaciones', '').strip()
+
     if compra and problema:
         execute_query(
             """INSERT INTO Mantenimientos 
-               (Compra, Problema_Presentado, Fecha_Inicio, Observaciones, Diagnostico, Fecha_Final) 
+               (Compra, Problema_Presentado, Diagnostico, Fecha_Inicio, Fecha_Final, Observaciones) 
                VALUES (%s, %s, %s, %s, %s, %s)""",
-            (compra, problema, fecha_inicio, observaciones, diagnostico, fecha_final)
+            (compra, problema, diagnostico, fecha_inicio, fecha_final, observaciones)
         )
         flash('✅ Mantenimiento agregado exitosamente', 'success')
+    else:
+        flash('❌ Faltan campos requeridos (Compra y Problema)', 'error')
     
     return redirect(url_for('mantenimientos'))
 
@@ -568,21 +812,23 @@ def editar_mantenimiento(id):
     """Editar mantenimiento existente"""
     compra = request.form.get('compra')
     problema = request.form.get('problema_presentado', '').strip()
-    fecha_inicio = request.form.get('fecha_inicio') or None
-    observaciones = request.form.get('observaciones', '').strip()
     diagnostico = request.form.get('diagnostico', '').strip()
+    fecha_inicio = request.form.get('fecha_inicio') or None
     fecha_final = request.form.get('fecha_final') or None
-    
+    observaciones = request.form.get('observaciones', '').strip()
+
     if compra and problema:
         execute_query(
             """UPDATE Mantenimientos 
-               SET Compra = %s, Problema_Presentado = %s, Fecha_Inicio = %s, 
-                   Observaciones = %s, Diagnostico = %s, Fecha_Final = %s 
+               SET Compra = %s, Problema_Presentado = %s, Diagnostico = %s, 
+                   Fecha_Inicio = %s, Fecha_Final = %s, Observaciones = %s
                WHERE IdMantenimiento = %s""",
-            (compra, problema, fecha_inicio, observaciones, diagnostico, fecha_final, id)
+            (compra, problema, diagnostico, fecha_inicio, fecha_final, observaciones, id)
         )
         flash('✅ Mantenimiento actualizado exitosamente', 'success')
-    
+    else:
+        flash('❌ Faltan campos requeridos (Compra y Problema)', 'error')
+
     return redirect(url_for('mantenimientos'))
 
 @app.route('/mantenimientos/eliminar/<int:id>')
@@ -591,6 +837,7 @@ def eliminar_mantenimiento(id):
     execute_query("DELETE FROM Mantenimientos WHERE IdMantenimiento = %s", (id,))
     flash('✅ Mantenimiento eliminado exitosamente', 'success')
     return redirect(url_for('mantenimientos'))
+
 
 # ========== CRUD PARA RELACIONES ENTRE COMPRAS ==========
 @app.route('/relaciones')
@@ -607,7 +854,9 @@ def relaciones():
                p1.Es_Producto_Madre as producto_madre_es_madre,
                p2.Es_Producto_Madre as producto_hija_es_madre,
                u1.Nombre as usuario_madre_nombre,
-               u2.Nombre as usuario_hija_nombre
+               u2.Nombre as usuario_hija_nombre,
+               ub1.NombreEdificio as ubicacion_madre,
+               ub2.NombreEdificio as ubicacion_hija
         FROM Relacion_Entre_Compras rec
         LEFT JOIN AsignadorCompra ac1 ON rec.IdCompra_Madre = ac1.IdAsignadorCompra
         LEFT JOIN AsignadorCompra ac2 ON rec.IdSub_Compra = ac2.IdAsignadorCompra
@@ -615,28 +864,61 @@ def relaciones():
         LEFT JOIN Productos p2 ON ac2.Producto = p2.IdProducto
         LEFT JOIN Usuarios u1 ON ac1.Comprado_Para = u1.IdUsuario
         LEFT JOIN Usuarios u2 ON ac2.Comprado_Para = u2.IdUsuario
+        LEFT JOIN Ubicaciones ub1 ON u1.Ubicacion = ub1.IdUbicacion
+        LEFT JOIN Ubicaciones ub2 ON u2.Ubicacion = ub2.IdUbicacion
         ORDER BY rec.IdRelacion_Entre_Compras
     """, fetchall=True)
     
-    # Obtener TODAS las compras para el formulario (no separadas)
-    compras_todas = execute_query("""
+    # Obtener compras MADRE (solo productos tipo madre)
+    compras_madre = execute_query("""
         SELECT ac.IdAsignadorCompra as id, 
                ac.NumeroSerie as numero_serie, 
                p.Nombre as nombre,
                u.IdUsuario as usuario_id,
                u.Nombre as usuario_nombre,
-               p.Es_Producto_Madre as producto_es_madre
+               p.Es_Producto_Madre as producto_es_madre,
+               ub.IdUbicacion as ubicacion_id,
+               ub.NombreEdificio as ubicacion_nombre
         FROM AsignadorCompra ac
         LEFT JOIN Productos p ON ac.Producto = p.IdProducto
         LEFT JOIN Usuarios u ON ac.Comprado_Para = u.IdUsuario
+        LEFT JOIN Ubicaciones ub ON u.Ubicacion = ub.IdUbicacion
         WHERE ac.Comprado_Para IS NOT NULL
+          AND p.Es_Producto_Madre = TRUE
         ORDER BY ac.Fecha_Compra DESC
+    """, fetchall=True)
+    
+    # Obtener compras HIJO (solo productos tipo hijo)
+    compras_hijo = execute_query("""
+        SELECT ac.IdAsignadorCompra as id, 
+               ac.NumeroSerie as numero_serie, 
+               p.Nombre as nombre,
+               u.IdUsuario as usuario_id,
+               u.Nombre as usuario_nombre,
+               p.Es_Producto_Madre as producto_es_madre,
+               ub.IdUbicacion as ubicacion_id,
+               ub.NombreEdificio as ubicacion_nombre
+        FROM AsignadorCompra ac
+        LEFT JOIN Productos p ON ac.Producto = p.IdProducto
+        LEFT JOIN Usuarios u ON ac.Comprado_Para = u.IdUsuario
+        LEFT JOIN Ubicaciones ub ON u.Ubicacion = ub.IdUbicacion
+        WHERE ac.Comprado_Para IS NOT NULL
+          AND p.Es_Producto_Madre = FALSE
+        ORDER BY ac.Fecha_Compra DESC
+    """, fetchall=True)
+    
+    # Obtener todas las ubicaciones disponibles
+    ubicaciones_list = execute_query("""
+        SELECT IdUbicacion as id, NombreEdificio as nombre 
+        FROM Ubicaciones 
+        ORDER BY NombreEdificio
     """, fetchall=True)
     
     return render_template('relaciones.html', 
                          relaciones=relaciones_list or [],
-                         compras=compras_todas or [])
-
+                         compras_madre=compras_madre or [],
+                         compras_hijo=compras_hijo or [],
+                         ubicaciones=ubicaciones_list or [])
 @app.route('/relaciones/agregar', methods=['POST'])
 def agregar_relacion():
     """Agregar nueva relación"""

@@ -9,6 +9,7 @@
             {% if messages %}
                 {% for category, message in messages %}
                     <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                        <i class="bi bi-{{ 'exclamation-circle' if category == 'error' else 'check-circle' }}"></i>
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
@@ -17,107 +18,313 @@
         {% endwith %}
         
         <!-- Formulario para agregar/editar producto -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5>{{ 'Editar Producto' if producto_edit else 'Agregar Nuevo Producto' }}</h5>
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi {{ 'bi-pencil-square' if producto_edit else 'bi-plus-circle' }}"></i>
+                    {{ 'Editar Producto' if producto_edit else 'Agregar Nuevo Producto' }}
+                </h5>
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for(producto_edit and 'editar_producto' or 'agregar_producto', id=producto_edit.id if producto_edit) }}">
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-5">
                             <div class="mb-3">
-                                <label for="nombre" class="form-label">Nombre del Producto *</label>
+                                <label for="nombre" class="form-label fw-bold">
+                                    <i class="bi bi-box"></i> Nombre del Producto *
+                                </label>
                                 <input type="text" class="form-control" id="nombre" name="nombre" 
-                                       value="{{ producto_edit.nombre if producto_edit }}" 
+                                       value="{{ producto_edit.nombre if producto_edit else '' }}" 
                                        required placeholder="Ej: Laptop Dell XPS 15">
+                                <small class="text-muted">Nombre único y descriptivo del producto</small>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="mb-3">
-                                <label for="categoria" class="form-label">Categoría *</label>
+                                <label for="categoria" class="form-label fw-bold">
+                                    <i class="bi bi-tag"></i> Categoría *
+                                </label>
                                 <select class="form-select" id="categoria" name="categoria" required>
                                     <option value="">Seleccionar categoría</option>
-                                    {% for categoria in categorias %}
-                                    <option value="{{ categoria.id }}" 
-                                            {{ 'selected' if producto_edit and producto_edit.categoria_id == categoria.id }}>
-                                        {{ categoria.nombre }}
+                                    {% for c in categorias %}
+                                    <option value="{{ c.id }}" {{ 'selected' if producto_edit and producto_edit.categoria_id == c.id }}>
+                                        {{ c.nombre }}
                                     </option>
                                     {% endfor %}
                                 </select>
+                                <small class="text-muted">Agrupa productos similares</small>
                             </div>
                         </div>
                         <div class="col-md-2">
                             <div class="mb-3">
-                                <label for="es_madre" class="form-label">Tipo de Producto</label>
+                                <label for="es_madre" class="form-label fw-bold">
+                                    <i class="bi bi-diagram-3"></i> Tipo *
+                                </label>
                                 <select class="form-select" id="es_madre" name="es_madre" required>
                                     <option value="true" {{ 'selected' if not producto_edit or producto_edit.es_madre == True }}>
-                                        🏠 Producto Madre
+                                        🏠 Madre
                                     </option>
                                     <option value="false" {{ 'selected' if producto_edit and producto_edit.es_madre == False }}>
-                                        🔧 Producto Hijo/Componente
+                                        🔧 Componente
                                     </option>
                                 </select>
+                                <small class="text-muted">Define relaciones</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="mb-3 d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg h-100">
+                                    <i class="bi bi-check-lg"></i> 
+                                    {{ 'Actualizar' if producto_edit else 'Agregar' }}
+                                </button>
                             </div>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary">
-                        {{ 'Actualizar' if producto_edit else 'Agregar' }}
-                    </button>
+
                     {% if producto_edit %}
-                    <a href="{{ url_for('productos') }}" class="btn btn-secondary">Cancelar</a>
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <a href="{{ url_for('productos') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-lg"></i> Cancelar Edición
+                            </a>
+                        </div>
+                    </div>
                     {% endif %}
                 </form>
             </div>
         </div>
 
-        <!-- Lista de productos -->
-        <div class="card">
-            <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5>Lista de Productos</h5>
-                    <div>
-                        <span class="badge bg-info">🏠 Madre</span>
-                        <span class="badge bg-warning ms-2">🔧 Hijo</span>
+        <!-- Panel de filtros para la lista -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-funnel"></i> Filtros de Búsqueda
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="filterNombre" class="form-label fw-bold">
+                            <i class="bi bi-search"></i> Nombre
+                        </label>
+                        <input type="text" class="form-control" id="filterNombre" placeholder="Buscar por nombre...">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="filterCategoria" class="form-label fw-bold">
+                            <i class="bi bi-tag"></i> Categoría
+                        </label>
+                        <select class="form-select" id="filterCategoria">
+                            <option value="">Todas las categorías</option>
+                            {% for c in categorias %}
+                            <option value="{{ c.nombre }}">{{ c.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="filterTipo" class="form-label fw-bold">
+                            <i class="bi bi-diagram-3"></i> Tipo
+                        </label>
+                        <select class="form-select" id="filterTipo">
+                            <option value="">Todos los tipos</option>
+                            <option value="madre">🏠 Madre</option>
+                            <option value="hijo">🔧 Componente</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button class="btn btn-outline-secondary" id="resetFilters">
+                                <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
+                            </button>
+                            <div>
+                                <span class="badge bg-success fs-6" id="productosFiltrados">0</span>
+                                <span class="ms-2 text-muted">productos mostrados</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="card-body">
+        </div>
+
+        <!-- Lista de productos -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ul"></i> Lista de Productos
+                </h5>
+                <div>
+                    <span class="badge bg-light text-dark fs-6" id="productosCount">{{ productos|length }}</span>
+                    <span class="ms-2">en total</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if productos %}
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="table-light sticky-top">
                             <tr>
-                                <th>Tipo</th>
-                                <th>Nombre</th>
-                                <th>Categoría</th>
-                                <th>Acciones</th>
+                                <th style="width: 10%" class="text-center">
+                                    <i class="bi bi-diagram-3"></i> Tipo
+                                </th>
+                                <th style="width: 40%">
+                                    <i class="bi bi-box"></i> Nombre
+                                </th>
+                                <th style="width: 30%">
+                                    <i class="bi bi-tag"></i> Categoría
+                                </th>
+                                <th style="width: 20%" class="text-center">
+                                    <i class="bi bi-gear"></i> Acciones
+                                </th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tablaProductos">
                             {% for producto in productos %}
-                            <tr>
-                                <td>
+                            <tr class="producto-row" 
+                                data-nombre="{{ producto.nombre or '' }}" 
+                                data-categoria="{{ producto.categoria_nombre or '' }}" 
+                                data-tipo="{{ 'madre' if producto.es_madre else 'hijo' }}"
+                                style="transition: background-color 0.2s;">
+                                <td class="text-center">
                                     {% if producto.es_madre %}
-                                    <span class="badge bg-info">🏠 Madre</span>
+                                        <span class="badge bg-info" title="Producto Padre">
+                                            <i class="bi bi-pc-display"></i> Madre
+                                        </span>
                                     {% else %}
-                                    <span class="badge bg-warning">🔧 Hijo</span>
+                                        <span class="badge bg-warning text-dark" title="Componente/Accesorio">
+                                            <i class="bi bi-box"></i> Componente
+                                        </span>
                                     {% endif %}
                                 </td>
-                                <td>{{ producto.nombre }}</td>
-                                <td>{{ producto.categoria_nombre }}</td>
                                 <td>
-                                    <a href="{{ url_for('productos', editar=producto.id) }}" 
-                                       class="btn btn-sm btn-warning">Editar</a>
-                                    <a href="{{ url_for('eliminar_producto', id=producto.id) }}" 
-                                       class="btn btn-sm btn-danger" 
-                                       onclick="return confirm('¿Está seguro de eliminar este producto?')">Eliminar</a>
+                                    <div>
+                                        <strong>{{ producto.nombre }}</strong>
+                                        <br>
+                                        <small class="text-muted">ID: {{ producto.id }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">
+                                        {{ producto.categoria_nombre or 'Sin categoría' }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('productos', editar=producto.id) }}" 
+                                           class="btn btn-outline-warning" 
+                                           title="Editar producto">
+                                            <i class="bi bi-pencil"></i> Editar
+                                        </a>
+                                        <a href="{{ url_for('eliminar_producto', id=producto.id) }}" 
+                                           class="btn btn-outline-danger" 
+                                           title="Eliminar producto"
+                                           onclick="return confirm('⚠️ ¿Está seguro de eliminar &quot;{{ producto.nombre }}&quot;? Esto no es posible si el producto está en uso.')">
+                                            <i class="bi bi-trash"></i> Eliminar
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+                {% else %}
+                <div class="alert alert-info text-center m-4" role="alert">
+                    <i class="bi bi-info-circle"></i> 
+                    <strong>No hay productos registrados.</strong> 
+                    Agrega tu primer producto usando el formulario arriba.
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ Script de productos cargado');
+    
+    // --- ELEMENTOS DEL DOM ---
+    const filterNombre = document.getElementById('filterNombre');
+    const filterCategoria = document.getElementById('filterCategoria');
+    const filterTipo = document.getElementById('filterTipo');
+    const tablaBody = document.getElementById('tablaProductos');
+    const filas = tablaBody ? tablaBody.getElementsByClassName('producto-row') : [];
+    const contadorFiltrados = document.getElementById('productosFiltrados');
+    const productosCount = document.getElementById('productosCount');
+
+    // --- FUNCIÓN DE FILTRADO ---
+    function filtrarTabla() {
+        const nombreFiltro = filterNombre.value.toLowerCase();
+        const categoriaFiltro = filterCategoria.value.toLowerCase();
+        const tipoFiltro = filterTipo.value;
+        let count = 0;
+
+        console.log('🔍 Filtrando productos:', { nombreFiltro, categoriaFiltro, tipoFiltro });
+
+        for (let fila of filas) {
+            const nombre = (fila.dataset.nombre || '').toLowerCase();
+            const categoria = (fila.dataset.categoria || '').toLowerCase();
+            const tipo = fila.dataset.tipo;
+
+            const coincideNombre = nombreFiltro === '' || nombre.includes(nombreFiltro);
+            const coincideCategoria = categoriaFiltro === '' || categoria.includes(categoriaFiltro);
+            const coincideTipo = tipoFiltro === '' || tipo === tipoFiltro;
+
+            const mostrar = coincideNombre && coincideCategoria && coincideTipo;
+
+            fila.style.display = mostrar ? '' : 'none';
+            if (mostrar) count++;
+        }
+        
+        contadorFiltrados.textContent = count;
+        console.log('✅ Productos mostrados:', count);
+    }
+
+    // --- EVENT LISTENERS PARA FILTROS ---
+    filterNombre.addEventListener('keyup', function() {
+        console.log('🔎 Búsqueda por nombre:', this.value);
+        filtrarTabla();
+    });
+
+    filterCategoria.addEventListener('change', function() {
+        console.log('📁 Filtro por categoría:', this.value);
+        filtrarTabla();
+    });
+
+    filterTipo.addEventListener('change', function() {
+        console.log('📊 Filtro por tipo:', this.value);
+        filtrarTabla();
+    });
+
+    // --- EFECTO HOVER EN FILAS ---
+    Array.from(filas).forEach(fila => {
+        fila.addEventListener('mouseenter', function() {
+            if (this.style.display !== 'none') {
+                this.style.backgroundColor = '#f8f9fa';
+            }
+        });
+
+        fila.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+
+    // --- BOTÓN LIMPIAR FILTROS ---
+    document.getElementById('resetFilters').addEventListener('click', function(e) {
+        e.preventDefault();
+        filterNombre.value = '';
+        filterCategoria.value = '';
+        filterTipo.value = '';
+        console.log('🔄 Filtros limpios');
+        filtrarTabla();
+    });
+
+    // --- INICIALIZAR ---
+    filtrarTabla();
+    console.log('✅ Script completamente inicializado');
+});
+</script>
 {% endblock %}

@@ -9,44 +9,115 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('index') }}">🏢 Sistema de Inventario</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('categorias') }}">Categorías</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('productos') }}">Productos</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('proveedores') }}">Proveedores</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('ubicaciones') }}">Ubicaciones</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('usuarios') }}">Usuarios</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('compras') }}">Compras</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('mantenimientos') }}">Mantenimientos</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('relaciones') }}">Relaciones</a></li>
-                </ul>
-            </div>
+    <!-- Botón para móvil -->
+    <button type="button" id="sidebarCollapse" class="navbar-toggler-custom">
+        <i class="bi bi-list fs-4"></i>
+    </button>
+
+    <!-- Sidebar -->
+    <nav id="sidebar">
+        <div class="sidebar-header">
+            <h3><i class="bi bi-building"></i> Sistema de Inventario</h3>
         </div>
+
+        <ul class="list-unstyled components">
+            <li>
+                <a href="{{ url_for('index') }}">
+                    <i class="bi bi-house-door"></i> Inicio
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('compras') }}">
+                    <i class="bi bi-cart-plus"></i> Compras
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('mantenimientos') }}">
+                    <i class="bi bi-tools"></i> Mantenimientos
+                </a>
+            </li>
+            <!-- Dropdown de Configuración -->
+            <li class="dropdown">
+                <button class="dropdown-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#configSubmenu" aria-expanded="false">
+                    <span><i class="bi bi-gear"></i> Configuración</span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                <div class="collapse dropdown-menu" id="configSubmenu">
+                    <a href="{{ url_for('productos') }}">
+                        <i class="bi bi-box-seam"></i> Productos
+                    </a>
+                    <a href="{{ url_for('categorias') }}">
+                        <i class="bi bi-folder"></i> Categorías
+                    </a>
+                    <a href="{{ url_for('ubicaciones') }}">
+                        <i class="bi bi-geo-alt"></i> Ubicaciones
+                    </a>
+                    <a href="{{ url_for('proveedores') }}">
+                        <i class="bi bi-truck"></i> Proveedores
+                    </a>
+                    <a href="{{ url_for('relaciones') }}">
+                        <i class="bi bi-link-45deg"></i> Relaciones
+                    </a>
+                    <a href="{{ url_for('usuarios') }}">
+                        <i class="bi bi-people"></i> Usuarios
+                    </a>
+                </div>
+            </li>
+        </ul>
     </nav>
 
-    <div class="container mt-4">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+    <!-- Contenido principal -->
+    <div id="content">
+        <div class="container-fluid p-4">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
 
-        {% block content %}{% endblock %}
+            {% block content %}{% endblock %}
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarCollapse = document.getElementById('sidebarCollapse');
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+            
+            if (sidebarCollapse) {
+                sidebarCollapse.addEventListener('click', function() {
+                    sidebar.classList.toggle('active');
+                    content.classList.toggle('active');
+                });
+            }
+
+            // Marcar link activo
+            const currentPath = window.location.pathname;
+            document.querySelectorAll('#sidebar a').forEach(link => {
+                if (link.getAttribute('href') === currentPath) {
+                    link.classList.add('active');
+                    
+                    // Si el link activo está dentro del dropdown, expandirlo
+                    const parentCollapse = link.closest('.collapse');
+                    if (parentCollapse) {
+                        parentCollapse.classList.add('show');
+                        const dropdownToggle = document.querySelector('[data-bs-target="#' + parentCollapse.id + '"]');
+                        if (dropdownToggle) {
+                            dropdownToggle.setAttribute('aria-expanded', 'true');
+                        }
+                    }
+                }
+            });
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

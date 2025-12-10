@@ -5,111 +5,60 @@
     <div class="col-md-12">
         <h2>🛒 Compras</h2>
         
-        <!-- DEBUG: Mostrar información -->
-        <div class="alert alert-info d-none">
-            <small>
-                DEBUG: <br>
-                Compras: {{ compras|length }}<br>
-                Productos: {{ productos|length }}<br>
-                Proveedores: {{ proveedores|length }}<br>
-                Usuarios: {{ usuarios|length }}<br>
-                {% if usuarios %}Primer usuario: {{ usuarios[0] }}{% endif %}
-            </small>
-        </div>
-        
-        <!-- Formulario para agregar/editar compra -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Formulario de compras en tabla -->
         <div class="card mb-4">
             <div class="card-header">
-                <h5>{% if compra_edit %}Editar Compra{% else %}Agregar Nueva Compra{% endif %}</h5>
+                <h5><i class="bi bi-plus-circle"></i> Agregar Compras</h5>
             </div>
             <div class="card-body">
-                <form method="POST" 
-                      action="{% if compra_edit %}{{ url_for('editar_compra', id=compra_edit.id) }}{% else %}{{ url_for('agregar_compra') }}{% endif %}">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label for="fecha_compra" class="form-label">Fecha de Compra</label>
-                                <input type="date" class="form-control" id="fecha_compra" name="fecha_compra" 
-                                       value="{{ compra_edit.fecha_compra if compra_edit else '' }}" required>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label for="producto" class="form-label">Producto</label>
-                                <select class="form-select" id="producto" name="producto" required>
-                                    <option value="">Seleccionar producto</option>
-                                    {% if productos %}
-                                        {% for producto in productos %}
-                                        <option value="{{ producto.id }}"
-                                                {% if compra_edit and compra_edit.producto_id == producto.id %}selected{% endif %}>
-                                            {{ producto.nombre }}
-                                        </option>
-                                        {% endfor %}
-                                    {% else %}
-                                        <option value="" disabled>No hay productos disponibles</option>
-                                    {% endif %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label for="proveedor" class="form-label">Proveedor</label>
-                                <select class="form-select" id="proveedor" name="proveedor" required>
-                                    <option value="">Seleccionar proveedor</option>
-                                    {% if proveedores %}
-                                        {% for proveedor in proveedores %}
-                                        <option value="{{ proveedor.id }}"
-                                                {% if compra_edit and compra_edit.proveedor_id == proveedor.id %}selected{% endif %}>
-                                            {{ proveedor.nombre }}
-                                        </option>
-                                        {% endfor %}
-                                    {% else %}
-                                        <option value="" disabled>No hay proveedores disponibles</option>
-                                    {% endif %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label for="fin_garantia" class="form-label">Fin de Garantía (opcional)</label>
-                                <input type="date" class="form-control" id="fin_garantia" name="fin_garantia" 
-                                       value="{{ compra_edit.fin_garantia if compra_edit else '' }}">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="comprado_para" class="form-label">Comprado para (opcional)</label>
-                                <select class="form-select" id="comprado_para" name="comprado_para">
-                                    <option value="">Sin asignar</option>
-                                    {% if usuarios %}
-                                        {% for usuario in usuarios %}
-                                        <option value="{{ usuario.id }}"
-                                                {% if compra_edit and compra_edit.usuario_id == usuario.id %}selected{% endif %}>
-                                            {{ usuario.nombre }}
-                                        </option>
-                                        {% endfor %}
-                                    {% else %}
-                                        <option value="" disabled>No hay usuarios disponibles</option>
-                                    {% endif %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="numero_serie" class="form-label">Número de Serie (opcional)</label>
-                                <input type="text" class="form-control" id="numero_serie" name="numero_serie" 
-                                       value="{{ compra_edit.numero_serie if compra_edit else '' }}">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3 d-grid">
-                                <label class="form-label">&nbsp;</label>
-                                <button type="submit" class="btn btn-primary">
-                                    {% if compra_edit %}Actualizar{% else %}Agregar{% endif %}
+                <form method="POST" action="{{ url_for('agregar_compra') }}" id="formCompras">
+                    <div class="mb-3 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Tabla de Compras</h6>
+                        <button type="button" class="btn btn-success btn-sm" id="agregarFilaCompra">
+                            <i class="bi bi-plus-lg"></i> Agregar Fila
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover" id="tablaComprasInput">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 11%">Fecha *</th>
+                                    <th style="width: 13%">Producto * <small class="text-muted">(doble clic)</small></th>
+                                    <th style="width: 13%">Proveedor * <small class="text-muted">(doble clic)</small></th>
+                                    <th style="width: 10%">Garantía</th>
+                                    <th style="width: 12%">Usuario <small class="text-muted">(doble clic)</small></th>
+                                    <th style="width: 11%">N° Serie</th>
+                                    <th style="width: 14%">Vincular a Padre <small class="text-muted">(doble clic)</small></th>
+                                    <th style="width: 6%" class="text-center">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="comprasBody">
+                                <!-- Las filas se agregan aquí dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="reset" class="btn btn-outline-secondary" id="btnLimpiar">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Limpiar Formulario
                                 </button>
-                                {% if compra_edit %}
-                                <a href="{{ url_for('compras') }}" class="btn btn-secondary mt-2">Cancelar</a>
-                                {% endif %}
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-lg"></i> Guardar Todas las Compras
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -117,11 +66,56 @@
             </div>
         </div>
 
-        <!-- Lista de compras -->
+        <!-- Panel de filtros para la lista -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="bi bi-funnel"></i> Filtros de Búsqueda</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3"><label for="filterUbicacion" class="form-label">Ubicación</label><select class="form-select" id="filterUbicacion"><option value="">Todas</option>{% for u in ubicaciones %}<option value="{{ u.nombre }}">{{ u.nombre }}</option>{% endfor %}</select></div>
+                    <div class="col-md-3">
+                        <label for="filterUsuario" class="form-label">Usuario</label>
+                        <select class="form-select" id="filterUsuario">
+                            <option value="">Todos</option>
+                            {% for u in usuarios %}
+                            <option value="{{ u.nombre }}" data-ubicacion="{{ u.ubicacion_nombre or '' }}">{{ u.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3"><label for="filterProducto" class="form-label">Producto</label><input type="text" class="form-control" id="filterProducto" placeholder="Nombre del producto..."></div>
+                    <div class="col-md-3"><label for="filterSerie" class="form-label">N° Serie</label><input type="text" class="form-control" id="filterSerie" placeholder="Número de serie..."></div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <label for="filterFechaCompraInicio" class="form-label">Fecha Compra (Desde)</label>
+                        <input type="date" class="form-control" id="filterFechaCompraInicio">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterFechaCompraFin" class="form-label">Fecha Compra (Hasta)</label>
+                        <input type="date" class="form-control" id="filterFechaCompraFin">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterGarantiaInicio" class="form-label">Fin Garantía (Desde)</label>
+                        <input type="date" class="form-control" id="filterGarantiaInicio">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterGarantiaFin" class="form-label">Fin Garantía (Hasta)</label>
+                        <input type="date" class="form-control" id="filterGarantiaFin">
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <button class="btn btn-outline-secondary" id="resetFilters" type="button"><i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros</button>
+                    <div class="text-end"><span class="badge bg-info fs-6" id="comprasFiltradas">0</span><span class="ms-1">compras mostradas</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de compras guardadas -->
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Lista de Compras</h5>
-                <span class="badge bg-primary">{{ compras|length }} compras</span>
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Compras Registradas</h5>
+                <div><span class="badge bg-primary fs-6">{{ compras|length }}</span><span class="ms-1">en total</span></div>
             </div>
             <div class="card-body">
                 {% if compras %}
@@ -129,32 +123,35 @@
                     <table class="table table-striped table-hover">
                         <thead>
                             <tr>
-                                <th>ID</th>
                                 <th>Fecha</th>
                                 <th>Producto</th>
                                 <th>Proveedor</th>
-                                <th>Usuario</th>
+                                <th>Usuario / Ubicación</th>
                                 <th>N° Serie</th>
                                 <th>Fin Garantía</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tablaCompras">
                             {% for compra in compras %}
-                            <tr>
-                                <td>{{ compra.id }}</td>
+                            <tr class="compra-row" 
+                                data-producto="{{ compra.producto_nombre or '' }}" 
+                                data-usuario="{{ compra.usuario_nombre or '' }}" 
+                                data-ubicacion="{{ compra.ubicacion_nombre or '' }}" 
+                                data-serie="{{ compra.numero_serie or '' }}"
+                                data-fecha-compra="{{ compra.fecha_compra or '' }}"
+                                data-fin-garantia="{{ compra.fin_garantia or '' }}">
                                 <td>{{ compra.fecha_compra }}</td>
-                                <td>{{ compra.producto_nombre or 'Desconocido' }}</td>
-                                <td>{{ compra.proveedor_nombre or 'Desconocido' }}</td>
-                                <td>{{ compra.usuario_nombre or 'No asignado' }}</td>
-                                <td>{{ compra.numero_serie or '-' }}</td>
+                                <td>{{ compra.producto_nombre or 'N/A' }}</td>
+                                <td>{{ compra.proveedor_nombre or 'N/A' }}</td>
+                                <td>
+                                    {{ compra.usuario_nombre or 'No asignado' }}<br>
+                                    {% if compra.ubicacion_nombre %}<small class="text-muted"><i class="bi bi-geo-alt"></i> {{ compra.ubicacion_nombre }}</small>{% endif %}
+                                </td>
+                                <td><span class="badge bg-secondary">{{ compra.numero_serie or '-' }}</span></td>
                                 <td>{{ compra.fin_garantia or '-' }}</td>
                                 <td>
-                                    <a href="{{ url_for('compras') }}?editar={{ compra.id }}" 
-                                       class="btn btn-sm btn-warning">Editar</a>
-                                    <a href="{{ url_for('eliminar_compra', id=compra.id) }}" 
-                                       class="btn btn-sm btn-danger" 
-                                       onclick="return confirm('¿Está seguro de eliminar esta compra?')">Eliminar</a>
+                                    <a href="{{ url_for('eliminar_compra', id=compra.id) }}" class="btn btn-sm btn-danger" title="Eliminar" onclick="return confirm('¿Está seguro de eliminar esta compra?')"><i class="bi bi-trash"></i></a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -162,28 +159,1053 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="alert alert-info">
-                    No hay compras registradas. Agrega una nueva compra.
-                </div>
+                <div class="alert alert-info text-center">No hay compras registradas. Agrega nuevas compras usando el formulario anterior.</div>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
+
+<!-- Modal para seleccionar Producto -->
+<div class="modal fade" id="modalProductos" tabindex="-1" aria-labelledby="modalProductosLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="modalProductosLabel">
+                    <i class="bi bi-box-seam"></i> Seleccionar Producto
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-lg" id="searchProductos" placeholder="🔍 Buscar producto...">
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select form-select-lg" id="filterCategoria">
+                            <option value="">Todas las categorías</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select form-select-lg" id="filterTipoProducto">
+                            <option value="">Todos los tipos</option>
+                            <option value="madre">Producto Madre</option>
+                            <option value="hijo">Producto Hijo/Componente</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-hover table-sm" id="tablaProductosModal">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th><i class="bi bi-box"></i> Nombre del Producto</th>
+                                <th style="width: 15%" class="text-center">Categoría</th>
+                                <th style="width: 15%" class="text-center">Tipo</th>
+                                <th style="width: 15%" class="text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productosTableBody">
+                            <!-- Se llena dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3" id="sinResultadosProductos" style="display: none;">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i> No se encontraron productos
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para seleccionar Proveedor -->
+<div class="modal fade" id="modalProveedores" tabindex="-1" aria-labelledby="modalProveedoresLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalProveedoresLabel">
+                    <i class="bi bi-truck"></i> Seleccionar Proveedor
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control form-control-lg" id="searchProveedores" placeholder="🔍 Buscar proveedor por nombre...">
+                </div>
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-hover table-sm" id="tablaProveedoresModal">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th><i class="bi bi-building"></i> Nombre del Proveedor</th>
+                                <th style="width: 15%" class="text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="proveedoresTableBody">
+                            <!-- Se llena dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3" id="sinResultadosProveedores" style="display: none;">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i> No se encontraron proveedores
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para seleccionar Usuario -->
+<div class="modal fade" id="modalUsuarios" tabindex="-1" aria-labelledby="modalUsuariosLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="modalUsuariosLabel">
+                    <i class="bi bi-person-check"></i> Seleccionar Usuario
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-7">
+                        <input type="text" class="form-control form-control-lg" id="searchUsuarios" placeholder="🔍 Buscar usuario por nombre...">
+                    </div>
+                    <div class="col-md-5">
+                        <select class="form-select form-select-lg" id="filterUbicacionUsuario">
+                            <option value="">Todas las ubicaciones</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-hover table-sm" id="tablaUsuariosModal">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th><i class="bi bi-person"></i> Nombre del Usuario</th>
+                                <th style="width: 25%" class="text-center">Ubicación</th>
+                                <th style="width: 15%" class="text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usuariosTableBody">
+                            <!-- Se llena dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3" id="sinResultadosUsuarios" style="display: none;">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i> No se encontraron usuarios
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para seleccionar Producto Padre -->
+<div class="modal fade" id="modalProductoPadre" tabindex="-1" aria-labelledby="modalProductoPadreLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="modalProductoPadreLabel">
+                    <i class="bi bi-diagram-2"></i> Seleccionar Producto Padre
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info" role="alert">
+                    <i class="bi bi-info-circle"></i> Se mostrarán los productos padres asignados al usuario seleccionado (doble clic para seleccionar)
+                </div>
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-hover table-sm" id="tablaProductoPadreModal">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th><i class="bi bi-cpu"></i> Producto Padre</th>
+                                <th style="width: 20%" class="text-center">Usuario</th>
+                                <th style="width: 20%" class="text-center">N° Serie</th>
+                                <th style="width: 15%" class="text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productoPadreTableBody">
+                            <!-- Se llena dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3" id="sinResultadosProductoPadre" style="display: none;">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i> No hay productos padres disponibles para este usuario
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Debug: mostrar información en consola
+document.addEventListener('DOMContentLoaded', function() {
+    // Datos globales
+    const productosData = {{ productos|tojson }};
+    const proveedoresData = {{ proveedores|tojson }};
+    const usuariosData = {{ usuarios|tojson }};
+    const ubicacionesData = {{ ubicaciones|tojson }};
+    const comprasMadreData = {{ compras_madre|tojson }};
 
-    
-    // Establecer fecha actual por defecto si no hay valor
-    document.addEventListener('DOMContentLoaded', function() {
-        const fechaCompraInput = document.getElementById('fecha_compra');
-        if (fechaCompraInput && !fechaCompraInput.value) {
-            const today = new Date().toISOString().split('T')[0];
-            fechaCompraInput.value = today;
+    // Variables para rastrear cuál fila abrió cada modal
+    let filaProductoActual = null;
+    let filaProveedorActual = null;
+    let filaUsuarioActual = null;
+    let filaProductoPadreActual = null;
+
+    // --- MODAL DE PRODUCTOS ---
+    const modalProductos = new bootstrap.Modal(document.getElementById('modalProductos'));
+    const searchProductos = document.getElementById('searchProductos');
+    const filterCategoria = document.getElementById('filterCategoria');
+    const filterTipoProducto = document.getElementById('filterTipoProducto');
+    const productosTableBody = document.getElementById('productosTableBody');
+    const sinResultadosProductos = document.getElementById('sinResultadosProductos');
+
+    // Llenar dropdown de categorías
+    function llenarCategorias() {
+        const categoriasUnicas = [...new Set(productosData.map(p => p.categoria_nombre).filter(c => c))];
+        categoriasUnicas.sort().forEach(categoria => {
+            const option = document.createElement('option');
+            option.value = categoria;
+            option.textContent = categoria;
+            filterCategoria.appendChild(option);
+        });
+    }
+    llenarCategorias();
+
+    function llenarTablaProductos(filtro = '', categoria = '', tipo = '') {
+        productosTableBody.innerHTML = '';
+        sinResultadosProductos.style.display = 'none';
+
+        const productosFiltrados = productosData.filter(p => {
+            const coincideNombre = p.nombre.toLowerCase().includes(filtro.toLowerCase());
+            const coincideCategoria = categoria === '' || p.categoria_nombre === categoria;
+            const coincideTipo = 
+                tipo === '' || 
+                (tipo === 'madre' && p.es_madre === true) || 
+                (tipo === 'hijo' && p.es_madre === false);
+            return coincideNombre && coincideCategoria && coincideTipo;
+        });
+
+        if (productosFiltrados.length === 0) {
+            sinResultadosProductos.style.display = 'block';
+            return;
         }
+
+        productosFiltrados.forEach(producto => {
+            const fila = document.createElement('tr');
+            const tipoProducto = producto.es_madre ? 'Producto Madre' : 'Componente/Hijo';
+            const claseBadgeTipo = producto.es_madre ? 'bg-warning text-dark' : 'bg-info';
+            const claseBadgeCategoria = 'bg-secondary';
+            
+            fila.innerHTML = `
+                <td>
+                    <i class="bi ${producto.es_madre ? 'bi-cpu' : 'bi-memory'} text-success"></i>
+                    <strong>${producto.nombre}</strong>
+                </td>
+                <td class="text-center">
+                    <span class="badge ${claseBadgeCategoria}">${producto.categoria_nombre || 'S/C'}</span>
+                </td>
+                <td class="text-center">
+                    <span class="badge ${claseBadgeTipo}">${tipoProducto}</span>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-success btn-seleccionar-producto" data-id="${producto.id}" data-nombre="${producto.nombre}" data-es-madre="${producto.es_madre}">
+                        <i class="bi bi-check-circle"></i> Seleccionar
+                    </button>
+                </td>
+            `;
+            
+            // Agregar evento de doble clic a la fila
+            fila.style.cursor = 'pointer';
+            fila.style.transition = 'background-color 0.2s';
+            
+            fila.addEventListener('dblclick', function(e) {
+                e.preventDefault();
+                const btn = fila.querySelector('.btn-seleccionar-producto');
+                btn.click();
+                // Efecto visual
+                fila.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    fila.style.backgroundColor = '';
+                }, 300);
+            });
+            
+            fila.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = '#f8f9fa';
+            });
+            
+            fila.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = '';
+            });
+            
+            productosTableBody.appendChild(fila);
+        });
+
+        // Event listeners para botones de seleccionar
+        document.querySelectorAll('.btn-seleccionar-producto').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const productoId = this.dataset.id;
+                const productoNombre = this.dataset.nombre;
+
+                if (filaProductoActual) {
+                    const inputOculto = filaProductoActual.querySelector('input[name="producto[]"]');
+                    inputOculto.value = productoId;
+                    
+                    const inputVisible = filaProductoActual.querySelector('input[data-producto-display]');
+                    inputVisible.value = productoNombre;
+                    
+                    filaProductoActual.dataset.productoSeleccionado = 'true';
+                }
+
+                modalProductos.hide();
+                filaProductoActual = null;
+            });
+        });
+    }
+
+    searchProductos.addEventListener('input', function(e) {
+        llenarTablaProductos(e.target.value, filterCategoria.value, filterTipoProducto.value);
     });
+
+    filterCategoria.addEventListener('change', function(e) {
+        llenarTablaProductos(searchProductos.value, e.target.value, filterTipoProducto.value);
+    });
+
+    filterTipoProducto.addEventListener('change', function(e) {
+        llenarTablaProductos(searchProductos.value, filterCategoria.value, e.target.value);
+    });
+
+    document.getElementById('modalProductos').addEventListener('show.bs.modal', function() {
+        searchProductos.value = '';
+        filterCategoria.value = '';
+        filterTipoProducto.value = '';
+        searchProductos.focus();
+        llenarTablaProductos();
+    });
+
+    // --- MODAL DE PROVEEDORES ---
+    const modalProveedores = new bootstrap.Modal(document.getElementById('modalProveedores'));
+    const searchProveedores = document.getElementById('searchProveedores');
+    const proveedoresTableBody = document.getElementById('proveedoresTableBody');
+    const sinResultadosProveedores = document.getElementById('sinResultadosProveedores');
+
+    function llenarTablaProveedores(filtro = '') {
+        proveedoresTableBody.innerHTML = '';
+        sinResultadosProveedores.style.display = 'none';
+
+        const proveedoresFiltrados = proveedoresData.filter(p => 
+            p.nombre.toLowerCase().includes(filtro.toLowerCase())
+        );
+
+        if (proveedoresFiltrados.length === 0) {
+            sinResultadosProveedores.style.display = 'block';
+            return;
+        }
+
+        proveedoresFiltrados.forEach(proveedor => {
+            const fila = document.createElement('tr');
+            fila.innerHTML = `
+                <td>
+                    <i class="bi bi-building text-primary"></i>
+                    <strong>${proveedor.nombre}</strong>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-primary btn-seleccionar-proveedor" data-id="${proveedor.id}" data-nombre="${proveedor.nombre}">
+                        <i class="bi bi-check-circle"></i> Seleccionar
+                    </button>
+                </td>
+            `;
+            
+            // Agregar evento de doble clic a la fila
+            fila.style.cursor = 'pointer';
+            fila.style.transition = 'background-color 0.2s';
+            
+            fila.addEventListener('dblclick', function(e) {
+                e.preventDefault();
+                const btn = fila.querySelector('.btn-seleccionar-proveedor');
+                btn.click();
+                // Efecto visual
+                fila.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    fila.style.backgroundColor = '';
+                }, 300);
+            });
+            
+            fila.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = '#f8f9fa';
+            });
+            
+            fila.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = '';
+            });
+            
+            proveedoresTableBody.appendChild(fila);
+        });
+
+        document.querySelectorAll('.btn-seleccionar-proveedor').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const proveedorId = this.dataset.id;
+                const proveedorNombre = this.dataset.nombre;
+
+                if (filaProveedorActual) {
+                    const inputOculto = filaProveedorActual.querySelector('input[name="proveedor[]"]');
+                    inputOculto.value = proveedorId;
+                    
+                    const inputVisible = filaProveedorActual.querySelector('input[data-proveedor-display]');
+                    inputVisible.value = proveedorNombre;
+                    
+                    filaProveedorActual.dataset.proveedorSeleccionado = 'true';
+                }
+
+                modalProveedores.hide();
+                filaProveedorActual = null;
+            });
+        });
+    }
+
+    searchProveedores.addEventListener('input', function(e) {
+        llenarTablaProveedores(e.target.value);
+    });
+
+    document.getElementById('modalProveedores').addEventListener('show.bs.modal', function() {
+        searchProveedores.value = '';
+        searchProveedores.focus();
+        llenarTablaProveedores();
+    });
+
+    // --- MODAL DE USUARIOS ---
+    const modalUsuarios = new bootstrap.Modal(document.getElementById('modalUsuarios'));
+    const searchUsuarios = document.getElementById('searchUsuarios');
+    const filterUbicacionUsuario = document.getElementById('filterUbicacionUsuario');
+    const usuariosTableBody = document.getElementById('usuariosTableBody');
+    const sinResultadosUsuarios = document.getElementById('sinResultadosUsuarios');
+
+    function llenarUbicacionesUsuario() {
+        const ubicacionesUnicas = [...new Set(usuariosData.map(u => u.ubicacion_nombre).filter(u => u))];
+        ubicacionesUnicas.sort().forEach(ubicacion => {
+            const option = document.createElement('option');
+            option.value = ubicacion;
+            option.textContent = ubicacion;
+            filterUbicacionUsuario.appendChild(option);
+        });
+    }
+    llenarUbicacionesUsuario();
+
+    function llenarTablaUsuarios(filtro = '', ubicacion = '') {
+        usuariosTableBody.innerHTML = '';
+        sinResultadosUsuarios.style.display = 'none';
+
+        const filasinAsignar = document.createElement('tr');
+        filasinAsignar.innerHTML = `
+            <td>
+                <i class="bi bi-person-slash text-warning"></i>
+                <strong>Sin asignar</strong>
+            </td>
+            <td class="text-center">
+                <span class="badge bg-danger">N/A</span>
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-warning btn-seleccionar-usuario" data-id="" data-nombre="Sin asignar">
+                    <i class="bi bi-check-circle"></i> Seleccionar
+                </button>
+            </td>
+        `;
+        
+        // Doble clic para "Sin asignar"
+        filasinAsignar.style.cursor = 'pointer';
+        filasinAsignar.style.transition = 'background-color 0.2s';
+        
+        filasinAsignar.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+            const btn = filasinAsignar.querySelector('.btn-seleccionar-usuario');
+            btn.click();
+            filasinAsignar.style.backgroundColor = '#d4edda';
+            setTimeout(() => {
+                filasinAsignar.style.backgroundColor = '';
+            }, 300);
+        });
+        
+        filasinAsignar.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#f8f9fa';
+        });
+        
+        filasinAsignar.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+        
+        usuariosTableBody.appendChild(filasinAsignar);
+
+        const usuariosFiltrados = usuariosData.filter(u => {
+            const coincideNombre = u.nombre.toLowerCase().includes(filtro.toLowerCase());
+            const coincideUbicacion = ubicacion === '' || u.ubicacion_nombre === ubicacion;
+            return coincideNombre && coincideUbicacion;
+        });
+
+        if (usuariosFiltrados.length === 0 && (filtro !== '' || ubicacion !== '')) {
+            return;
+        }
+
+        usuariosFiltrados.forEach(usuario => {
+            const fila = document.createElement('tr');
+            fila.innerHTML = `
+                <td>
+                    <i class="bi bi-person-circle text-info"></i>
+                    <strong>${usuario.nombre}</strong>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-secondary">${usuario.ubicacion_nombre || 'S/U'}</span>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-info btn-seleccionar-usuario" data-id="${usuario.id}" data-nombre="${usuario.nombre}">
+                        <i class="bi bi-check-circle"></i> Seleccionar
+                    </button>
+                </td>
+            `;
+            
+            // Doble clic para cada usuario
+            fila.style.cursor = 'pointer';
+            fila.style.transition = 'background-color 0.2s';
+            
+            fila.addEventListener('dblclick', function(e) {
+                e.preventDefault();
+                const btn = fila.querySelector('.btn-seleccionar-usuario');
+                btn.click();
+                fila.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    fila.style.backgroundColor = '';
+                }, 300);
+            });
+            
+            fila.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = '#f8f9fa';
+            });
+            
+            fila.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = '';
+            });
+            
+            usuariosTableBody.appendChild(fila);
+        });
+
+        document.querySelectorAll('.btn-seleccionar-usuario').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const usuarioId = this.dataset.id;
+                const usuarioNombre = this.dataset.nombre;
+
+                if (filaUsuarioActual) {
+                    const inputOculto = filaUsuarioActual.querySelector('input[name="comprado_para[]"]');
+                    inputOculto.value = usuarioId;
+                    
+                    const inputVisible = filaUsuarioActual.querySelector('input[data-usuario-display]');
+                    inputVisible.value = usuarioNombre;
+                    
+                    const productoPadreInput = filaUsuarioActual.querySelector('input[name="producto_padre[]"]');
+                    const productoPadreDisplay = filaUsuarioActual.querySelector('input[data-producto-padre-display]');
+                    
+                    if (productoPadreInput && productoPadreDisplay) {
+                        productoPadreInput.value = '';
+                        productoPadreDisplay.value = '';
+                    }
+                    
+                    filaUsuarioActual.dataset.usuarioSeleccionado = 'true';
+                }
+
+                modalUsuarios.hide();
+                filaUsuarioActual = null;
+            });
+        });
+    }
+
+    searchUsuarios.addEventListener('input', function(e) {
+        llenarTablaUsuarios(e.target.value, filterUbicacionUsuario.value);
+    });
+
+    filterUbicacionUsuario.addEventListener('change', function(e) {
+        llenarTablaUsuarios(searchUsuarios.value, e.target.value);
+    });
+
+    document.getElementById('modalUsuarios').addEventListener('show.bs.modal', function() {
+        searchUsuarios.value = '';
+        filterUbicacionUsuario.value = '';
+        searchUsuarios.focus();
+        llenarTablaUsuarios();
+    });
+
+    // --- MODAL DE PRODUCTO PADRE ---
+    const modalProductoPadre = new bootstrap.Modal(document.getElementById('modalProductoPadre'));
+    const productoPadreTableBody = document.getElementById('productoPadreTableBody');
+    const sinResultadosProductoPadre = document.getElementById('sinResultadosProductoPadre');
+
+    function llenarTablaProductoPadre(usuarioId) {
+        productoPadreTableBody.innerHTML = '';
+        sinResultadosProductoPadre.style.display = 'none';
+
+        const filaSinVincular = document.createElement('tr');
+        filaSinVincular.innerHTML = `
+            <td>
+                <i class="bi bi-x-circle text-danger"></i>
+                <strong>Sin vincular</strong>
+            </td>
+            <td class="text-center">
+                <span class="badge bg-secondary">N/A</span>
+            </td>
+            <td class="text-center">
+                <span class="badge bg-secondary">-</span>
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-danger btn-seleccionar-producto-padre" data-id="" data-nombre="Sin vincular">
+                    <i class="bi bi-check-circle"></i> Seleccionar
+                </button>
+            </td>
+        `;
+        
+        // Doble clic para "Sin vincular"
+        filaSinVincular.style.cursor = 'pointer';
+        filaSinVincular.style.transition = 'background-color 0.2s';
+        
+        filaSinVincular.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+            const btn = filaSinVincular.querySelector('.btn-seleccionar-producto-padre');
+            btn.click();
+            filaSinVincular.style.backgroundColor = '#d4edda';
+            setTimeout(() => {
+                filaSinVincular.style.backgroundColor = '';
+            }, 300);
+        });
+        
+        filaSinVincular.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#f8f9fa';
+        });
+        
+        filaSinVincular.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+        
+        productoPadreTableBody.appendChild(filaSinVincular);
+
+        if (!usuarioId || usuarioId === '' || usuarioId === 'undefined' || usuarioId === 'null') {
+            sinResultadosProductoPadre.style.display = 'block';
+            const alertDiv = sinResultadosProductoPadre.querySelector('.alert');
+            alertDiv.innerHTML = '<i class="bi bi-info-circle"></i> Debe seleccionar un usuario primero';
+            alertDiv.className = 'alert alert-info';
+            return;
+        }
+
+        const usuarioIdNum = parseInt(usuarioId);
+        
+        if (isNaN(usuarioIdNum)) {
+            sinResultadosProductoPadre.style.display = 'block';
+            const alertDiv = sinResultadosProductoPadre.querySelector('.alert');
+            alertDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Error: Usuario ID inválido';
+            alertDiv.className = 'alert alert-danger';
+            return;
+        }
+
+        const productosPadreUsuario = comprasMadreData.filter(c => {
+            const usuarioIdCompra = parseInt(c.usuario_id);
+            return usuarioIdCompra === usuarioIdNum;
+        });
+
+        if (productosPadreUsuario.length === 0) {
+            sinResultadosProductoPadre.style.display = 'block';
+            const alertDiv = sinResultadosProductoPadre.querySelector('.alert');
+            alertDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> No hay productos padres para este usuario';
+            alertDiv.className = 'alert alert-warning';
+            return;
+        }
+
+        productosPadreUsuario.forEach((producto) => {
+            const fila = document.createElement('tr');
+            fila.innerHTML = `
+                <td>
+                    <i class="bi bi-cpu text-success"></i>
+                    <strong>${producto.nombre}</strong>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-info">${producto.usuario_nombre || 'S/usuario'}</span>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-secondary">${producto.numero_serie || 'S/serie'}</span>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-warning btn-seleccionar-producto-padre" data-id="${producto.id}" data-nombre="${producto.nombre}${producto.numero_serie ? ' (' + producto.numero_serie + ')' : ''}">
+                        <i class="bi bi-check-circle"></i> Seleccionar
+                    </button>
+                </td>
+            `;
+            
+            // Doble clic para cada producto padre
+            fila.style.cursor = 'pointer';
+            fila.style.transition = 'background-color 0.2s';
+            
+            fila.addEventListener('dblclick', function(e) {
+                e.preventDefault();
+                const btn = fila.querySelector('.btn-seleccionar-producto-padre');
+                btn.click();
+                fila.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    fila.style.backgroundColor = '';
+                }, 300);
+            });
+            
+            fila.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = '#f8f9fa';
+            });
+            
+            fila.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = '';
+            });
+            
+            productoPadreTableBody.appendChild(fila);
+        });
+
+        document.querySelectorAll('.btn-seleccionar-producto-padre').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const productoId = this.dataset.id;
+                const productoNombre = this.dataset.nombre;
+
+                if (filaProductoPadreActual) {
+                    const inputOculto = filaProductoPadreActual.querySelector('input[name="producto_padre[]"]');
+                    inputOculto.value = productoId;
+                    
+                    const inputVisible = filaProductoPadreActual.querySelector('input[data-producto-padre-display]');
+                    inputVisible.value = productoNombre;
+                    
+                    filaProductoPadreActual.dataset.productoPadreSeleccionado = 'true';
+                }
+
+                modalProductoPadre.hide();
+                filaProductoPadreActual = null;
+            });
+        });
+    }
+
+    // --- CREACIÓN DINÁMICA DE FILAS ---
+    function crearFilaCompra() {
+        const fila = document.createElement('tr');
+        fila.className = 'fila-compra';
+        
+        const hoy = new Date().toISOString().split('T')[0];
+        
+        fila.innerHTML = `
+            <td>
+                <input type="date" class="form-control form-control-sm" name="fecha_compra[]" value="${hoy}" required>
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <input type="hidden" name="producto[]" value="">
+                    <input type="text" class="form-control" data-producto-display placeholder="Seleccionar producto..." readonly style="background-color: #f8f9fa; cursor: pointer;">
+                    <button class="btn btn-outline-success btn-abrir-modal-producto" type="button" title="Abrir selector de producto">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <input type="hidden" name="proveedor[]" value="">
+                    <input type="text" class="form-control" data-proveedor-display placeholder="Seleccionar proveedor..." readonly style="background-color: #f8f9fa; cursor: pointer;">
+                    <button class="btn btn-outline-primary btn-abrir-modal-proveedor" type="button" title="Abrir selector de proveedor">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </td>
+            <td>
+                <input type="date" class="form-control form-control-sm" name="fin_garantia[]">
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <input type="hidden" name="comprado_para[]" value="">
+                    <input type="text" class="form-control" data-usuario-display placeholder="Usuario sin asignar" readonly style="background-color: #f8f9fa; cursor: pointer;">
+                    <button class="btn btn-outline-info btn-abrir-modal-usuario" type="button" title="Abrir selector de usuario">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm" name="numero_serie[]" placeholder="Opcional">
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <input type="hidden" name="producto_padre[]" value="">
+                    <input type="text" class="form-control" data-producto-padre-display placeholder="Sin vincular" readonly style="background-color: #f8f9fa; cursor: pointer;">
+                    <button class="btn btn-outline-warning btn-abrir-modal-producto-padre" type="button" title="Abrir selector de producto padre">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-danger btn-sm btn-eliminar-fila">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+
+        fila.querySelector('.btn-abrir-modal-producto').addEventListener('click', function(e) {
+            e.preventDefault();
+            filaProductoActual = fila;
+            modalProductos.show();
+        });
+
+        fila.querySelector('input[data-producto-display]').addEventListener('click', function(e) {
+            e.preventDefault();
+            filaProductoActual = fila;
+            modalProductos.show();
+        });
+
+        fila.querySelector('.btn-abrir-modal-proveedor').addEventListener('click', function(e) {
+            e.preventDefault();
+            filaProveedorActual = fila;
+            modalProveedores.show();
+        });
+
+        fila.querySelector('input[data-proveedor-display]').addEventListener('click', function(e) {
+            e.preventDefault();
+            filaProveedorActual = fila;
+            modalProveedores.show();
+        });
+
+        fila.querySelector('.btn-abrir-modal-usuario').addEventListener('click', function(e) {
+            e.preventDefault();
+            filaUsuarioActual = fila;
+            modalUsuarios.show();
+        });
+
+        fila.querySelector('input[data-usuario-display]').addEventListener('click', function(e) {
+            e.preventDefault();
+            filaUsuarioActual = fila;
+            modalUsuarios.show();
+        });
+
+        fila.querySelector('.btn-abrir-modal-producto-padre').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const inputOculto = fila.querySelector('input[name="comprado_para[]"]');
+            const usuarioId = inputOculto ? inputOculto.value : '';
+            
+            if (!usuarioId || usuarioId === '') {
+                alert('⚠️ Debe seleccionar un usuario primero antes de vincular a un producto padre');
+                return;
+            }
+            
+            filaProductoPadreActual = fila;
+            llenarTablaProductoPadre(usuarioId);
+            modalProductoPadre.show();
+        });
+
+        fila.querySelector('input[data-producto-padre-display]').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const inputOculto = fila.querySelector('input[name="comprado_para[]"]');
+            const usuarioId = inputOculto ? inputOculto.value : '';
+            
+            if (!usuarioId || usuarioId === '') {
+                alert('⚠️ Debe seleccionar un usuario primero antes de vincular a un producto padre');
+                return;
+            }
+            
+            filaProductoPadreActual = fila;
+            llenarTablaProductoPadre(usuarioId);
+            modalProductoPadre.show();
+        });
+
+        fila.querySelector('.btn-eliminar-fila').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (document.querySelectorAll('#comprasBody tr').length > 1) {
+                fila.remove();
+            } else {
+                alert('Debe haber al menos una fila en la tabla');
+            }
+        });
+
+        document.getElementById('comprasBody').appendChild(fila);
+    }
+
+    document.getElementById('agregarFilaCompra').addEventListener('click', function(e) {
+        e.preventDefault();
+        crearFilaCompra();
+    });
+
+    crearFilaCompra();
+
+    document.getElementById('formCompras').addEventListener('submit', function(e) {
+        const filas = document.querySelectorAll('#comprasBody tr');
+        
+        if (filas.length === 0) {
+            e.preventDefault();
+            alert('Debe agregar al menos una compra');
+            return false;
+        }
+
+        let filasValidas = 0;
+        let filasInvalidas = [];
+        
+        filas.forEach((fila, index) => {
+            const fecha = fila.querySelector('input[name="fecha_compra[]"]').value;
+            const productoInput = fila.querySelector('input[name="producto[]"]').value;
+            const proveedorInput = fila.querySelector('input[name="proveedor[]"]').value;
+            const productoDisplay = fila.querySelector('input[data-producto-display]').value;
+            const proveedorDisplay = fila.querySelector('input[data-proveedor-display]').value;
+
+            if (fecha && productoInput && productoDisplay && proveedorInput && proveedorDisplay) {
+                filasValidas++;
+            } else {
+                const numeroFila = index + 1;
+                let errores = [];
+                if (!fecha) errores.push('Fecha');
+                if (!productoInput || !productoDisplay) errores.push('Producto');
+                if (!proveedorInput || !proveedorDisplay) errores.push('Proveedor');
+                filasInvalidas.push(`Fila ${numeroFila}: ${errores.join(', ')}`);
+            }
+        });
+
+        if (filasValidas === 0) {
+            e.preventDefault();
+            let mensajeError = 'No se puede guardar. Errores encontrados:\n\n';
+            mensajeError += filasInvalidas.join('\n');
+            alert(mensajeError);
+            return false;
+        }
+
+        if (filasInvalidas.length > 0) {
+            e.preventDefault();
+            let mensajeError = `Se encontraron ${filasInvalidas.length} fila(s) incompleta(s). Por favor corrígelas antes de guardar.\n\n`;
+            mensajeError += filasInvalidas.join('\n');
+            alert(mensajeError);
+            return false;
+        }
+
+        console.log('Enviando', filasValidas, 'compra(s) válida(s)');
+    });
+
+    document.getElementById('btnLimpiar').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.getElementById('comprasBody').innerHTML = '';
+        crearFilaCompra();
+    });
+
+    // --- LÓGICA DE DROPDOWNS DEPENDIENTES EN FILTROS ---
+    const filterUbicacion = document.getElementById('filterUbicacion');
+    const filterUsuario = document.getElementById('filterUsuario');
+    const usuarioOptions = Array.from(filterUsuario.options);
+
+    filterUbicacion.addEventListener('change', function() {
+        const selectedUbicacion = this.value;
+        const currentUsuarioValue = filterUsuario.value;
+        
+        filterUsuario.innerHTML = '';
+        filterUsuario.appendChild(usuarioOptions[0].cloneNode(true));
+
+        usuarioOptions.forEach(option => {
+            if (option.value === '') return;
+            const userUbicacion = option.dataset.ubicacion;
+            if (selectedUbicacion === '' || userUbicacion === selectedUbicacion) {
+                filterUsuario.appendChild(option.cloneNode(true));
+            }
+        });
+
+        const newOptionExists = Array.from(filterUsuario.options).some(opt => opt.value === currentUsuarioValue);
+        if (newOptionExists) {
+            filterUsuario.value = currentUsuarioValue;
+        } else {
+            filterUsuario.value = '';
+        }
+
+        filtrarTabla();
+    });
+
+    // --- FILTRADO DE TABLA ---
+    const filterProducto = document.getElementById('filterProducto');
+    const filterSerie = document.getElementById('filterSerie');
+    const filterFechaCompraInicio = document.getElementById('filterFechaCompraInicio');
+    const filterFechaCompraFin = document.getElementById('filterFechaCompraFin');
+    const filterGarantiaInicio = document.getElementById('filterGarantiaInicio');
+    const filterGarantiaFin = document.getElementById('filterGarantiaFin');
+    const comprasFiltradasBadge = document.getElementById('comprasFiltradas');
+
+    function filtrarTabla() {
+        const productoFiltro = filterProducto.value.toLowerCase();
+        const serieFiltro = filterSerie.value.toLowerCase();
+        const fechaCompraInicioFiltro = filterFechaCompraInicio.value;
+        const fechaCompraFinFiltro = filterFechaCompraFin.value;
+        const garantiaInicioFiltro = filterGarantiaInicio.value;
+        const garantiaFinFiltro = filterGarantiaFin.value;
+        const ubicacionFiltro = filterUbicacion.value;
+        const usuarioFiltro = filterUsuario.value;
+
+        let contadorFilas = 0;
+
+        document.querySelectorAll('#tablaCompras tr.compra-row').forEach(row => {
+            const productoTexto = row.dataset.producto.toLowerCase();
+            const serieTexto = row.dataset.serie.toLowerCase();
+            const fechaCompraTexto = row.dataset.fechaCompra;
+            const garantiaTexto = row.dataset.finGarantia;
+            const ubicacionTexto = row.dataset.ubicacion.toLowerCase();
+            const usuarioTexto = row.dataset.usuario.toLowerCase();
+
+            const fechaCompraValida = (!fechaCompraInicioFiltro || fechaCompraTexto >= fechaCompraInicioFiltro) && (!fechaCompraFinFiltro || fechaCompraTexto <= fechaCompraFinFiltro);
+            const garantiaValida = (!garantiaInicioFiltro || garantiaTexto >= garantiaInicioFiltro) && (!garantiaFinFiltro || garantiaTexto <= garantiaFinFiltro);
+            const productoValido = productoTexto.includes(productoFiltro);
+            const serieValida = serieTexto.includes(serieFiltro);
+            const ubicacionValida = ubicacionFiltro === '' || ubicacionTexto.includes(ubicacionFiltro.toLowerCase());
+            const usuarioValido = usuarioFiltro === '' || usuarioTexto.includes(usuarioFiltro.toLowerCase());
+
+            if (fechaCompraValida && garantiaValida && productoValido && serieValida && ubicacionValida && usuarioValido) {
+                row.style.display = '';
+                contadorFilas++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        comprasFiltradasBadge.textContent = contadorFilas;
+    }
+
+    filterProducto.addEventListener('input', filtrarTabla);
+    filterSerie.addEventListener('input', filtrarTabla);
+    filterFechaCompraInicio.addEventListener('change', filtrarTabla);
+    filterFechaCompraFin.addEventListener('change', filtrarTabla);
+    filterGarantiaInicio.addEventListener('change', filtrarTabla);
+    filterGarantiaFin.addEventListener('change', filtrarTabla);
+
+    document.getElementById('resetFilters').addEventListener('click', function(e) {
+        e.preventDefault();
+        filterUbicacion.value = '';
+        filterUsuario.value = '';
+        filterProducto.value = '';
+        filterSerie.value = '';
+        filterFechaCompraInicio.value = '';
+        filterFechaCompraFin.value = '';
+        filterGarantiaInicio.value = '';
+        filterGarantiaFin.value = '';
+
+        filterUsuario.innerHTML = '';
+        filterUsuario.appendChild(usuarioOptions[0].cloneNode(true));
+        usuarioOptions.forEach(option => {
+            if (option.value === '') return;
+            filterUsuario.appendChild(option.cloneNode(true));
+        });
+
+        document.querySelectorAll('#tablaCompras tr.compra-row').forEach(row => {
+            row.style.display = '';
+        });
+
+        comprasFiltradasBadge.textContent = document.querySelectorAll('#tablaCompras tr.compra-row').length;
+    });
+
+    filterUbicacion.addEventListener('change', filtrarTabla);
+    filterUsuario.addEventListener('change', filtrarTabla);
+
+    filtrarTabla();
+});
 </script>
 {% endblock %}

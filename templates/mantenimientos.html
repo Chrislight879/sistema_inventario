@@ -18,54 +18,150 @@
         
         <!-- Formulario para agregar/editar mantenimiento -->
         <div class="card mb-4">
-            <div class="card-header">
-                <h5>{{ 'Editar Mantenimiento' if mantenimiento_edit else 'Agregar Nuevo Mantenimiento' }}</h5>
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi {{ 'bi-pencil-square' if mantenimiento_edit else 'bi-plus-circle' }}"></i>
+                    {{ 'Editar Mantenimiento' if mantenimiento_edit else 'Agregar Nuevo Mantenimiento' }}
+                </h5>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for(mantenimiento_edit and 'editar_mantenimiento' or 'agregar_mantenimiento', id=mantenimiento_edit.id if mantenimiento_edit) }}">
+                <form method="POST" 
+                      action="{{ url_for('editar_mantenimiento', id=mantenimiento_edit.id) if mantenimiento_edit else url_for('agregar_mantenimiento') }}">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="compra" class="form-label">
+                                    <i class="bi bi-box-seam"></i> Seleccionar Equipo/Compra * 
+                                    <small class="text-muted">(Doble clic para seleccionar)</small>
+                                </label>
+                                
+                                <!-- Filtros de búsqueda -->
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <select class="form-select" id="filterUbicacionCompra">
+                                            <option value="">📍 Todas las ubicaciones</option>
+                                            {% for u in ubicaciones %}
+                                            <option value="{{ u.id }}">{{ u.nombre }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <select class="form-select" id="filterUsuarioCompra">
+                                            <option value="">👤 Todos los usuarios</option>
+                                            {% for u in usuarios %}
+                                            <option value="{{ u.id }}">{{ u.nombre }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control" id="searchCompra" placeholder="🔍 Buscar por serie, producto...">
+                                    </div>
+                                </div>
+
+                                <!-- Tabla de compras -->
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem;">
+                                    <table class="table table-hover table-sm mb-0">
+                                        <thead class="table-light sticky-top">
+                                            <tr>
+                                                <th style="width: 8%" class="text-center">Seleccionar</th>
+                                                <th style="width: 15%">
+                                                    <i class="bi bi-qrcode"></i> N° Serie
+                                                </th>
+                                                <th style="width: 25%">
+                                                    <i class="bi bi-box"></i> Producto
+                                                </th>
+                                                <th style="width: 20%">
+                                                    <i class="bi bi-person"></i> Usuario
+                                                </th>
+                                                <th style="width: 20%">
+                                                    <i class="bi bi-geo-alt"></i> Ubicación
+                                                </th>
+                                                <th style="width: 12%">
+                                                    <i class="bi bi-calendar"></i> Fecha Compra
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tablaComprasMantenimiento">
+                                            {% if compras %}
+                                                {% for compra in compras %}
+                                                <tr class="compra-mantenimiento-row"
+                                                    data-id="{{ compra.id }}"
+                                                    data-ubicacion-id="{{ compra.ubicacion_id or '' }}"
+                                                    data-usuario-id="{{ compra.usuario_id or '' }}"
+                                                    data-serie="{{ compra.numero_serie or '' }}"
+                                                    data-producto="{{ compra.nombre or '' }}"
+                                                    style="cursor: pointer; transition: background-color 0.2s;">
+                                                    <td class="text-center">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input radio-compra" type="radio" name="compra" 
+                                                                   id="compra{{ compra.id }}" value="{{ compra.id }}"
+                                                                   {{ 'checked' if mantenimiento_edit and mantenimiento_edit.compra_id == compra.id }}>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-info">{{ compra.numero_serie or 'Sin serie' }}</span>
+                                                    </td>
+                                                    <td>
+                                                        <strong>{{ compra.nombre or 'N/A' }}</strong>
+                                                    </td>
+                                                    <td>
+                                                        <i class="bi bi-person-circle text-success"></i>
+                                                        {{ compra.usuario_nombre or 'No asignado' }}
+                                                    </td>
+                                                    <td>
+                                                        <i class="bi bi-geo-alt-fill text-warning"></i>
+                                                        {{ compra.ubicacion_nombre or 'N/A' }}
+                                                    </td>
+                                                    <td>
+                                                        <small class="text-muted">{{ compra.fecha_compra or '-' }}</small>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            {% else %}
+                                                <tr>
+                                                    <td colspan="6" class="text-center py-3">
+                                                        <span class="text-muted">No hay compras disponibles</span>
+                                                    </td>
+                                                </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <!-- Input oculto para almacenar la selección -->
+                                <input type="hidden" id="compra" name="compra" value="{{ mantenimiento_edit.compra_id if mantenimiento_edit }}">
+                                
+                                <!-- Mostrador de selección -->
+                                <div class="mt-2 alert alert-info" id="compraSeleccionadaAlert" style="display: none;">
+                                    <i class="bi bi-check-circle"></i> 
+                                    <strong>✅ Seleccionado:</strong> <span id="compraSeleccionadaTexto"></span>
+                                </div>
+                                
+                                <!-- Badge de contador -->
+                                <div class="mt-2">
+                                    <span class="badge bg-secondary" id="comprasEncontradas">0</span>
+                                    <span class="text-muted">compras encontradas</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="compra" class="form-label">Compra *</label>
-                                <select class="form-select" id="compra" name="compra" required>
-                                    <option value="">Seleccionar compra</option>
-                                    {% for compra in compras %}
-                                    <option value="{{ compra.id }}" 
-                                            {{ 'selected' if mantenimiento_edit and mantenimiento_edit.compra_id == compra.id }}>
-                                        {{ compra.numero_serie }} - {{ compra.nombre }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="problema_presentado" class="form-label">Problema Presentado *</label>
+                                <label for="problema_presentado" class="form-label">
+                                    <i class="bi bi-exclamation-triangle"></i> Problema Presentado *
+                                </label>
                                 <input type="text" class="form-control" id="problema_presentado" name="problema_presentado" 
                                        value="{{ mantenimiento_edit.problema if mantenimiento_edit }}" 
                                        required placeholder="Ej: Pantalla no enciende">
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="fecha_inicio" class="form-label">Fecha de Inicio</label>
-                                <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" 
-                                       value="{{ mantenimiento_edit.fecha_inicio if mantenimiento_edit }}">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="fecha_final" class="form-label">Fecha de Finalización</label>
-                                <input type="date" class="form-control" id="fecha_final" name="fecha_final" 
-                                       value="{{ mantenimiento_edit.fecha_final if mantenimiento_edit }}">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="diagnostico" class="form-label">Diagnóstico</label>
+                                <label for="diagnostico" class="form-label">
+                                    <i class="bi bi-stethoscope"></i> Diagnóstico
+                                </label>
                                 <input type="text" class="form-control" id="diagnostico" name="diagnostico" 
                                        value="{{ mantenimiento_edit.diagnostico if mantenimiento_edit }}" 
                                        placeholder="Ej: Cambio de pantalla">
@@ -73,73 +169,266 @@
                         </div>
                     </div>
                     
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fecha_inicio" class="form-label">
+                                    <i class="bi bi-calendar-event"></i> Fecha de Inicio
+                                </label>
+                                <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" 
+                                       value="{{ mantenimiento_edit.fecha_inicio if mantenimiento_edit }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fecha_final" class="form-label">
+                                    <i class="bi bi-calendar-check"></i> Fecha de Finalización
+                                </label>
+                                <input type="date" class="form-control" id="fecha_final" name="fecha_final" 
+                                       value="{{ mantenimiento_edit.fecha_final if mantenimiento_edit }}">
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="mb-3">
-                        <label for="observaciones" class="form-label">Observaciones</label>
+                        <label for="observaciones" class="form-label">
+                            <i class="bi bi-chat-left-text"></i> Observaciones
+                        </label>
                         <textarea class="form-control" id="observaciones" name="observaciones" rows="3" 
                                   placeholder="Observaciones adicionales...">{{ mantenimiento_edit.observaciones if mantenimiento_edit }}</textarea>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary">
-                        {{ 'Actualizar' if mantenimiento_edit else 'Agregar' }}
-                    </button>
-                    {% if mantenimiento_edit %}
-                    <a href="{{ url_for('mantenimientos') }}" class="btn btn-secondary">Cancelar</a>
-                    {% endif %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> {{ 'Actualizar' if mantenimiento_edit else 'Agregar' }} Mantenimiento
+                        </button>
+                        {% if mantenimiento_edit %}
+                        <a href="{{ url_for('mantenimientos') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-lg"></i> Cancelar
+                        </a>
+                        {% endif %}
+                    </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Panel de filtros para la lista -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-funnel"></i> Filtros de Búsqueda</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="filterUbicacion" class="form-label">
+                            <i class="bi bi-geo-alt"></i> Ubicación
+                        </label>
+                        <select class="form-select" id="filterUbicacion">
+                            <option value="">Todas las ubicaciones</option>
+                            {% for u in ubicaciones %}<option value="{{ u.nombre }}">{{ u.nombre }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterUsuario" class="form-label">
+                            <i class="bi bi-person"></i> Usuario
+                        </label>
+                        <select class="form-select" id="filterUsuario">
+                            <option value="">Todos los usuarios</option>
+                            {% for u in usuarios %}<option value="{{ u.nombre }}">{{ u.nombre }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterProducto" class="form-label">
+                            <i class="bi bi-box"></i> Producto
+                        </label>
+                        <input type="text" class="form-control" id="filterProducto" placeholder="Nombre del producto...">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterSerie" class="form-label">
+                            <i class="bi bi-qrcode"></i> N° Serie
+                        </label>
+                        <input type="text" class="form-control" id="filterSerie" placeholder="Número de serie...">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <label for="filterEstado" class="form-label">
+                            <i class="bi bi-check-circle"></i> Estado
+                        </label>
+                        <select class="form-select" id="filterEstado">
+                            <option value="">Todos los estados</option>
+                            <option value="pendiente">Pendiente (Sin finalizar)</option>
+                            <option value="completado">Completado (Finalizado)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterFechaInicio" class="form-label">
+                            <i class="bi bi-calendar-event"></i> Desde
+                        </label>
+                        <input type="date" class="form-control" id="filterFechaInicio">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterFechaFin" class="form-label">
+                            <i class="bi bi-calendar-check"></i> Hasta
+                        </label>
+                        <input type="date" class="form-control" id="filterFechaFin">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button class="btn btn-outline-secondary w-100" id="resetFilters">
+                            <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
+                        </button>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end align-items-center mt-3">
+                    <span class="badge bg-success fs-6" id="mantenimientosFiltrados">0</span>
+                    <span class="ms-2 text-muted">mantenimientos mostrados</span>
+                </div>
             </div>
         </div>
 
         <!-- Lista de mantenimientos -->
         <div class="card">
-            <div class="card-header">
-                <h5>Lista de Mantenimientos</h5>
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Lista de Mantenimientos</h5>
+                <div>
+                    <span class="badge bg-light text-dark fs-6" id="mantenimientosCount">{{ mantenimientos|length }}</span>
+                    <span class="ms-2">en total</span>
+                </div>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="table-light sticky-top">
                             <tr>
-                                <th>ID</th>
-                                <th>N° Serie</th>
-                                <th>Producto</th>
-                                <th>Problema</th>
-                                <th>Fecha Inicio</th>
-                                <th>Fecha Final</th>
-                                <th>Diagnóstico</th>
-                                <th>Acciones</th>
+                                <th style="width: 15%">
+                                    <i class="bi bi-box-seam"></i> Equipo / Serie
+                                </th>
+                                <th style="width: 12%">
+                                    <i class="bi bi-person"></i> Usuario
+                                </th>
+                                <th style="width: 12%">
+                                    <i class="bi bi-geo-alt"></i> Ubicación
+                                </th>
+                                <th style="width: 20%">
+                                    <i class="bi bi-exclamation-triangle"></i> Problema
+                                </th>
+                                <th style="width: 15%">
+                                    <i class="bi bi-calendar"></i> Fechas
+                                </th>
+                                <th style="width: 18%">
+                                    <i class="bi bi-stethoscope"></i> Diagnóstico / Observaciones
+                                </th>
+                                <th style="width: 8%" class="text-center">
+                                    <i class="bi bi-gear"></i> Acciones
+                                </th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {% for mantenimiento in mantenimientos %}
-                            <tr>
-                                <td>{{ mantenimiento.id }}</td>
-                                <td>{{ mantenimiento.numero_serie or 'N/A' }}</td>
-                                <td>{{ mantenimiento.producto_nombre or 'N/A' }}</td>
-                                <td>
-                                    {% if mantenimiento.problema %}
-                                        {{ mantenimiento.problema[:50] }}{% if mantenimiento.problema|length > 50 %}...{% endif %}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td>{{ mantenimiento.fecha_inicio or '-' }}</td>
-                                <td>{{ mantenimiento.fecha_final or '-' }}</td>
-                                <td>
-                                    {% if mantenimiento.diagnostico %}
-                                        {{ mantenimiento.diagnostico[:30] }}{% if mantenimiento.diagnostico|length > 30 %}...{% endif %}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <a href="{{ url_for('mantenimientos', editar=mantenimiento.id) }}" 
-                                       class="btn btn-sm btn-warning">Editar</a>
-                                    <a href="{{ url_for('eliminar_mantenimiento', id=mantenimiento.id) }}" 
-                                       class="btn btn-sm btn-danger" 
-                                       onclick="return confirm('¿Está seguro de eliminar este mantenimiento?')">Eliminar</a>
-                                </td>
-                            </tr>
-                            {% endfor %}
+                        <tbody id="tablaMantenimientos">
+                            {% if mantenimientos %}
+                                {% for m in mantenimientos %}
+                                <tr class="mantenimiento-row"
+                                    data-usuario="{{ m.usuario_nombre or '' }}"
+                                    data-ubicacion="{{ m.ubicacion_nombre or '' }}"
+                                    data-producto="{{ m.producto_nombre or '' }}"
+                                    data-serie="{{ m.numero_serie or '' }}"
+                                    data-fecha-inicio="{{ m.fecha_inicio or '' }}"
+                                    data-fecha-final="{{ m.fecha_final or '' }}">
+                                    
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div>
+                                                <strong class="text-primary">{{ m.producto_nombre or 'N/A' }}</strong><br>
+                                                <small class="text-muted">
+                                                    <i class="bi bi-qrcode"></i>
+                                                    {{ m.numero_serie or 'Sin serie' }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    
+                                    <td>
+                                        <i class="bi bi-person-circle text-info"></i>
+                                        {{ m.usuario_nombre or '<span class="text-muted">No asignado</span>' }}
+                                    </td>
+                                    
+                                    <td>
+                                        <i class="bi bi-geo-alt-fill text-warning"></i>
+                                        {{ m.ubicacion_nombre or '<span class="text-muted">N/A</span>' }}
+                                    </td>
+                                    
+                                    <td>
+                                        <div title="{{ m.problema }}">
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-exclamation-circle"></i>
+                                                {{ m.problema[:40] }}{% if m.problema|length > 40 %}...{% endif %}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    
+                                    <td>
+                                        <div class="small">
+                                            {% if m.fecha_inicio %}
+                                                <div class="mb-2">
+                                                    <span class="badge bg-info">
+                                                        <i class="bi bi-calendar-event"></i> Inicio: {{ m.fecha_inicio }}
+                                                    </span>
+                                                </div>
+                                            {% endif %}
+                                            {% if m.fecha_final %}
+                                                <div>
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-calendar-check"></i> Final: {{ m.fecha_final }}
+                                                    </span>
+                                                </div>
+                                            {% else %}
+                                                <div>
+                                                    <span class="badge bg-warning text-dark">
+                                                        <i class="bi bi-clock-history"></i> Pendiente
+                                                    </span>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    
+                                    <td>
+                                        <div class="small">
+                                            {% if m.diagnostico %}
+                                                <div class="mb-1" title="{{ m.diagnostico }}">
+                                                    <strong>Diag:</strong> {{ m.diagnostico[:30] }}{% if m.diagnostico|length > 30 %}...{% endif %}
+                                                </div>
+                                            {% endif %}
+                                            {% if m.observaciones %}
+                                                <div title="{{ m.observaciones }}">
+                                                    <strong>Obs:</strong> {{ m.observaciones[:30] }}{% if m.observaciones|length > 30 %}...{% endif %}
+                                                </div>
+                                            {% endif %}
+                                            {% if not m.diagnostico and not m.observaciones %}
+                                                <span class="text-muted">Sin información</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('mantenimientos', editar=m.id) }}" class="btn btn-sm btn-warning" title="Editar mantenimiento">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{{ url_for('eliminar_mantenimiento', id=m.id) }}" class="btn btn-sm btn-danger" title="Eliminar mantenimiento" onclick="return confirm('¿Está seguro de eliminar este mantenimiento?')">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-5">
+                                        <div class="alert alert-info mb-0">
+                                            <i class="bi bi-info-circle"></i> No hay mantenimientos registrados. Agrega uno nuevo usando el formulario anterior.
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
@@ -147,4 +436,218 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ Script de mantenimientos cargado');
+    
+    // --- MANEJO DE SELECCIÓN DE COMPRA CON FILTROS ---
+    const filterUbicacionCompra = document.getElementById('filterUbicacionCompra');
+    const filterUsuarioCompra = document.getElementById('filterUsuarioCompra');
+    const searchCompra = document.getElementById('searchCompra');
+    const compraInput = document.getElementById('compra');
+    const compraSeleccionadaAlert = document.getElementById('compraSeleccionadaAlert');
+    const compraSeleccionadaTexto = document.getElementById('compraSeleccionadaTexto');
+    const comprasEncontradas = document.getElementById('comprasEncontradas');
+    
+    const filasCompras = document.querySelectorAll('.compra-mantenimiento-row');
+    console.log('📊 Filas de compras encontradas:', filasCompras.length);
+
+    function filtrarCompras() {
+        const ubicacionId = filterUbicacionCompra.value;
+        const usuarioId = filterUsuarioCompra.value;
+        const searchTerm = searchCompra.value.toLowerCase();
+        
+        console.log('🔍 Filtrando compras:', { ubicacionId, usuarioId, searchTerm });
+        
+        let visibles = 0;
+
+        filasCompras.forEach((fila, index) => {
+            const filaUbicacionId = fila.getAttribute('data-ubicacion-id') || '';
+            const filaUsuarioId = fila.getAttribute('data-usuario-id') || '';
+            const filaSerie = (fila.getAttribute('data-serie') || '').toLowerCase();
+            const filaProducto = (fila.getAttribute('data-producto') || '').toLowerCase();
+            
+            const ubicacionValida = ubicacionId === '' || filaUbicacionId === ubicacionId;
+            const usuarioValido = usuarioId === '' || filaUsuarioId === usuarioId;
+            const busquedaValida = searchTerm === '' || filaSerie.includes(searchTerm) || filaProducto.includes(searchTerm);
+            
+            const mostrar = ubicacionValida && usuarioValido && busquedaValida;
+            
+            fila.style.display = mostrar ? '' : 'none';
+            if (mostrar) visibles++;
+        });
+
+        comprasEncontradas.textContent = visibles;
+        console.log('✅ Compras visibles después del filtro:', visibles);
+    }
+
+    // Event listeners para filtros
+    filterUbicacionCompra.addEventListener('change', function() {
+        console.log('📍 Ubicación cambió a:', this.value);
+        filtrarCompras();
+    });
+
+    filterUsuarioCompra.addEventListener('change', function() {
+        console.log('👤 Usuario cambió a:', this.value);
+        filtrarCompras();
+    });
+    
+    searchCompra.addEventListener('keyup', function() {
+        console.log('🔎 Búsqueda:', this.value);
+        filtrarCompras();
+    });
+
+    // Seleccionar compra con radio button
+    document.querySelectorAll('.radio-compra').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                const filaCompra = this.closest('.compra-mantenimiento-row');
+                const serie = filaCompra.querySelector('.badge').textContent;
+                const producto = filaCompra.querySelectorAll('td')[2].textContent.trim();
+                const usuario = filaCompra.querySelectorAll('td')[3].textContent.trim();
+                
+                compraInput.value = this.value;
+                compraSeleccionadaTexto.innerHTML = `<i class="bi bi-qrcode"></i> ${serie} - ${producto} (${usuario})`;
+                compraSeleccionadaAlert.style.display = 'block';
+                compraSeleccionadaAlert.scrollIntoView({ behavior: 'smooth' });
+                
+                console.log('✅ Compra seleccionada:', { serie, producto, usuario });
+            }
+        });
+    });
+
+    // Seleccionar compra con doble clic
+    filasCompras.forEach(fila => {
+        fila.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+            const radio = this.querySelector('.radio-compra');
+            if (radio && this.style.display !== 'none') {
+                radio.checked = true;
+                radio.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                this.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    this.style.backgroundColor = '';
+                }, 300);
+                
+                console.log('⚡ Doble clic en fila - seleccionada');
+            }
+        });
+
+        fila.addEventListener('mouseenter', function() {
+            if (this.style.display !== 'none') {
+                this.style.backgroundColor = '#f8f9fa';
+            }
+        });
+
+        fila.addEventListener('mouseleave', function() {
+            if (!this.querySelector('.radio-compra').checked) {
+                this.style.backgroundColor = '';
+            }
+        });
+    });
+
+    // Inicializar filtros
+    filtrarCompras();
+
+    // --- FILTRADO DE TABLA DE MANTENIMIENTOS ---
+    const filterUbicacion = document.getElementById('filterUbicacion');
+    const filterUsuario = document.getElementById('filterUsuario');
+    const filterProducto = document.getElementById('filterProducto');
+    const filterSerie = document.getElementById('filterSerie');
+    const filterEstado = document.getElementById('filterEstado');
+    const filterFechaInicio = document.getElementById('filterFechaInicio');
+    const filterFechaFin = document.getElementById('filterFechaFin');
+    const tablaBody = document.getElementById('tablaMantenimientos');
+    const filas = tablaBody.getElementsByClassName('mantenimiento-row');
+    const contadorFiltrados = document.getElementById('mantenimientosFiltrados');
+
+    function filtrarTabla() {
+        const ubicacionFiltro = filterUbicacion.value.toLowerCase();
+        const usuarioFiltro = filterUsuario.value.toLowerCase();
+        const productoFiltro = filterProducto.value.toLowerCase();
+        const serieFiltro = filterSerie.value.toLowerCase();
+        const estadoFiltro = filterEstado.value;
+        const fechaInicioFiltro = filterFechaInicio.value;
+        const fechaFinFiltro = filterFechaFin.value;
+        let count = 0;
+
+        for (let fila of filas) {
+            const ubicacion = (fila.dataset.ubicacion || '').toLowerCase();
+            const usuario = (fila.dataset.usuario || '').toLowerCase();
+            const producto = (fila.dataset.producto || '').toLowerCase();
+            const serie = (fila.dataset.serie || '').toLowerCase();
+            const fechaInicio = fila.dataset.fechaInicio || '';
+            const fechaFinal = fila.dataset.fechaFinal || '';
+
+            let estadoValido = true;
+            if (estadoFiltro === 'pendiente') {
+                estadoValido = !fechaFinal;
+            } else if (estadoFiltro === 'completado') {
+                estadoValido = !!fechaFinal;
+            }
+
+            let fechasValidas = true;
+            if (fechaInicioFiltro) {
+                fechasValidas = fechasValidas && (!fechaInicio || fechaInicio >= fechaInicioFiltro);
+            }
+            if (fechaFinFiltro) {
+                fechasValidas = fechasValidas && (!fechaFinal || fechaFinal <= fechaFinFiltro);
+            }
+
+            const mostrar = 
+                (ubicacionFiltro === '' || ubicacion.includes(ubicacionFiltro)) &&
+                (usuarioFiltro === '' || usuario.includes(usuarioFiltro)) &&
+                (productoFiltro === '' || producto.includes(productoFiltro)) &&
+                (serieFiltro === '' || serie.includes(serieFiltro)) &&
+                estadoValido &&
+                fechasValidas;
+
+            fila.style.display = mostrar ? '' : 'none';
+            if (mostrar) count++;
+        }
+        contadorFiltrados.textContent = count;
+    }
+
+    // Event listeners para la tabla de mantenimientos
+    [filterUbicacion, filterUsuario, filterEstado].forEach(el => {
+        el.addEventListener('change', function() {
+            console.log('📊 Filtro de tabla cambió');
+            filtrarTabla();
+        });
+    });
+    
+    [filterProducto, filterSerie].forEach(el => {
+        el.addEventListener('keyup', function() {
+            console.log('📊 Búsqueda en tabla cambió');
+            filtrarTabla();
+        });
+    });
+    
+    [filterFechaInicio, filterFechaFin].forEach(el => {
+        el.addEventListener('change', function() {
+            console.log('📅 Fechas en tabla cambiaron');
+            filtrarTabla();
+        });
+    });
+
+    document.getElementById('resetFilters').addEventListener('click', function(e) {
+        e.preventDefault();
+        filterUbicacion.value = '';
+        filterUsuario.value = '';
+        filterProducto.value = '';
+        filterSerie.value = '';
+        filterEstado.value = '';
+        filterFechaInicio.value = '';
+        filterFechaFin.value = '';
+        console.log('🔄 Filtros limpios');
+        filtrarTabla();
+    });
+
+    filtrarTabla();
+});
+</script>
 {% endblock %}

@@ -5,30 +5,56 @@
     <div class="col-md-12">
         <h2>🚚 Proveedores</h2>
         
+        <!-- Mostrar mensajes flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                        <i class="bi bi-{{ 'exclamation-circle' if category == 'error' else 'check-circle' }}"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <!-- Formulario para agregar/editar proveedor -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5>{% if proveedor_edit %}Editar Proveedor{% else %}Agregar Nuevo Proveedor{% endif %}</h5>
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi {{ 'bi-pencil-square' if proveedor_edit else 'bi-plus-circle' }}"></i>
+                    {{ 'Editar Proveedor' if proveedor_edit else 'Agregar Nuevo Proveedor' }}
+                </h5>
             </div>
             <div class="card-body">
                 <form method="POST" 
                       action="{% if proveedor_edit %}{{ url_for('editar_proveedor', id=proveedor_edit.id) }}{% else %}{{ url_for('agregar_proveedor') }}{% endif %}">
-                    <div class="row">
-                        <div class="col-md-8">
+                    <div class="row align-items-end">
+                        <div class="col-md-9">
                             <div class="mb-3">
-                                <label for="nombre" class="form-label">Nombre del Proveedor</label>
-                                <input type="text" class="form-control" id="nombre" name="nombre" 
-                                       value="{{ proveedor_edit.nombre if proveedor_edit else '' }}" required>
+                                <label for="nombre" class="form-label fw-bold">
+                                    <i class="bi bi-building"></i> Nombre del Proveedor *
+                                </label>
+                                <input type="text" 
+                                       class="form-control form-control-lg" 
+                                       id="nombre" 
+                                       name="nombre" 
+                                       value="{{ proveedor_edit.nombre if proveedor_edit else '' }}" 
+                                       required
+                                       placeholder="Ej: Tech Solutions Inc, Dell Direct...">
+                                <small class="text-muted">Nombre único y completo del proveedor</small>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="mb-3 d-grid">
-                                <label class="form-label">&nbsp;</label>
-                                <button type="submit" class="btn btn-primary">
-                                    {% if proveedor_edit %}Actualizar{% else %}Agregar{% endif %}
+                        <div class="col-md-3">
+                            <div class="mb-3 d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-check-lg"></i> 
+                                    {{ 'Actualizar Proveedor' if proveedor_edit else 'Agregar Proveedor' }}
                                 </button>
                                 {% if proveedor_edit %}
-                                <a href="{{ url_for('proveedores') }}" class="btn btn-secondary mt-2">Cancelar</a>
+                                <a href="{{ url_for('proveedores') }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-lg"></i> Cancelar
+                                </a>
                                 {% endif %}
                             </div>
                         </div>
@@ -37,31 +63,97 @@
             </div>
         </div>
 
-        <!-- Lista de proveedores -->
-        <div class="card">
-            <div class="card-header">
-                <h5>Lista de Proveedores</h5>
+        <!-- Panel de filtros para la lista -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-funnel"></i> Filtros de Búsqueda
+                </h5>
             </div>
             <div class="card-body">
+                <div class="row">
+                    <div class="col-md-12">
+                        <label for="filterNombre" class="form-label fw-bold">
+                            <i class="bi bi-search"></i> Nombre de Proveedor
+                        </label>
+                        <input type="text" 
+                               class="form-control form-control-lg" 
+                               id="filterNombre" 
+                               placeholder="🔍 Buscar por nombre de proveedor...">
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <button class="btn btn-outline-secondary" id="resetFilters">
+                        <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtro
+                    </button>
+                    <div class="text-end">
+                        <span class="badge bg-success fs-6" id="proveedoresFiltrados">0</span>
+                        <span class="ms-2 text-muted">proveedores mostrados</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de proveedores -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ul"></i> Lista de Proveedores
+                </h5>
+                <div>
+                    <span class="badge bg-light text-dark fs-6">{{ proveedores|length }}</span>
+                    <span class="ms-2">en total</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
                 {% if proveedores %}
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="table-light sticky-top">
                             <tr>
-                                <th>Nombre</th>
-                                <th>Acciones</th>
+                                <th style="width: 15%; min-width: 100px;" class="text-center">
+                                    <i class="bi bi-123"></i> ID
+                                </th>
+                                <th style="width: 85%;">
+                                    <i class="bi bi-building"></i> Nombre del Proveedor
+                                </th>
+                                <th style="width: 10%;" class="text-center">
+                                    <i class="bi bi-gear"></i> Acciones
+                                </th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tablaProveedores">
                             {% for proveedor in proveedores %}
-                            <tr>
-                                <td>{{ proveedor.nombre }}</td>
+                            <tr class="proveedor-row" 
+                                data-nombre="{{ proveedor.nombre or '' }}"
+                                data-id="{{ proveedor.id }}"
+                                style="transition: background-color 0.2s; cursor: default;">
+                                <td class="text-center">
+                                    <span class="badge bg-secondary">{{ proveedor.id }}</span>
+                                </td>
                                 <td>
-                                    <a href="{{ url_for('proveedores') }}?editar={{ proveedor.id }}" 
-                                       class="btn btn-sm btn-warning">Editar</a>
-                                    <a href="{{ url_for('eliminar_proveedor', id=proveedor.id) }}" 
-                                       class="btn btn-sm btn-danger" 
-                                       onclick="return confirm('¿Está seguro de eliminar este proveedor?')">Eliminar</a>
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-truck text-primary" style="font-size: 1.5rem; margin-right: 12px;"></i>
+                                        <div>
+                                            <strong class="d-block">{{ proveedor.nombre }}</strong>
+                                            <small class="text-muted">Proveedor #{{ proveedor.id }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('proveedores', editar=proveedor.id) }}" 
+                                           class="btn btn-outline-warning" 
+                                           title="Editar este proveedor">
+                                            <i class="bi bi-pencil"></i> Editar
+                                        </a>
+                                        <a href="{{ url_for('eliminar_proveedor', id=proveedor.id) }}" 
+                                           class="btn btn-outline-danger" 
+                                           title="Eliminar este proveedor"
+                                           onclick="return confirm('⚠️ ¿Está seguro de eliminar &quot;{{ proveedor.nombre }}&quot;? No será posible si está en uso.')">
+                                            <i class="bi bi-trash"></i> Eliminar
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -69,12 +161,77 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="alert alert-info">
-                    No hay proveedores registrados. Agrega un nuevo proveedor.
+                <div class="alert alert-info text-center m-4" role="alert">
+                    <i class="bi bi-info-circle" style="font-size: 2rem;"></i>
+                    <p class="mt-2"><strong>No hay proveedores registrados.</strong></p>
+                    <p class="text-muted">Agrega tu primer proveedor usando el formulario arriba para comenzar a gestionar tus compras.</p>
                 </div>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ Script de proveedores cargado');
+    
+    // --- ELEMENTOS DEL DOM ---
+    const filterNombre = document.getElementById('filterNombre');
+    const tablaBody = document.getElementById('tablaProveedores');
+    const filas = tablaBody ? tablaBody.getElementsByClassName('proveedor-row') : [];
+    const contadorFiltrados = document.getElementById('proveedoresFiltrados');
+
+    // --- FUNCIÓN DE FILTRADO ---
+    function filtrarTabla() {
+        const nombreFiltro = filterNombre.value.toLowerCase();
+        let count = 0;
+
+        console.log('🔍 Filtrando proveedores:', { nombreFiltro });
+
+        for (let fila of filas) {
+            const nombre = (fila.dataset.nombre || '').toLowerCase();
+            const mostrar = nombre.includes(nombreFiltro);
+            
+            fila.style.display = mostrar ? '' : 'none';
+            if (mostrar) count++;
+        }
+        
+        contadorFiltrados.textContent = count;
+        console.log('✅ Proveedores mostrados:', count);
+    }
+
+    // --- EVENT LISTENERS ---
+    filterNombre.addEventListener('keyup', function() {
+        console.log('🔎 Búsqueda:', this.value);
+        filtrarTabla();
+    });
+
+    document.getElementById('resetFilters').addEventListener('click', function(e) {
+        e.preventDefault();
+        filterNombre.value = '';
+        console.log('🔄 Filtro limpio');
+        filtrarTabla();
+    });
+
+    // --- EFECTO HOVER EN FILAS ---
+    Array.from(filas).forEach(fila => {
+        fila.addEventListener('mouseenter', function() {
+            if (this.style.display !== 'none') {
+                this.style.backgroundColor = '#f8f9fa';
+            }
+        });
+
+        fila.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+
+    // --- INICIALIZAR ---
+    filtrarTabla();
+    console.log('✅ Script completamente inicializado');
+});
+</script>
 {% endblock %}
